@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	instance.NewServerInstance("8080").Run()
+	instance.New("8080").Run()
 }

@@ -4,47 +4,36 @@ import (
 	"fmt"
 )
 
-type MetricValues struct {
-	gauge   float64
-	counter int64
-}
 type MemStorage struct {
-	metrics map[string]*MetricValues
+	gaugeMetrics   map[string]float64
+	counterMetrics map[string]int64
 	Storage
 }
 
 func (t *MemStorage) UpdateCounter(name string, value int64) {
-	metric, ok := t.metrics[name]
+	_, ok := t.counterMetrics[name]
 	if ok {
-		metric.counter += value
+		t.counterMetrics[name] += value
 	} else {
-		t.metrics[name] = &MetricValues{
-			counter: value,
-			gauge:   0,
-		}
+		t.counterMetrics[name] = value
 	}
 	t.PrintValues()
 }
 
 func (t *MemStorage) UpdateGauge(name string, value float64) {
-	metric, ok := t.metrics[name]
-	if ok {
-		metric.gauge = value
-	} else {
-		t.metrics[name] = &MetricValues{
-			counter: 0,
-			gauge:   value,
-		}
-	}
+	t.gaugeMetrics[name] = value
 	t.PrintValues()
 }
 
 func (t MemStorage) PrintValues() {
-	for key, value := range t.metrics {
-		fmt.Println("Metric name", key, "gauge", value.gauge, "counter", value.counter)
+	for key, value := range t.counterMetrics {
+		fmt.Println("Metric type: counter", "Name", key, "Val", value)
+	}
+	for key, value := range t.gaugeMetrics {
+		fmt.Println("Metric type: gauge", "Name", key, "Val", value)
 	}
 }
 
 func New() *MemStorage {
-	return &MemStorage{metrics: make(map[string]*MetricValues)}
+	return &MemStorage{gaugeMetrics: make(map[string]float64), counterMetrics: map[string]int64{}}
 }

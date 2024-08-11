@@ -13,7 +13,7 @@ type ServerInstance struct {
 	storage storages.Storage
 }
 
-func NewServerInstance(port string) *ServerInstance {
+func New(port string) *ServerInstance {
 	instance := ServerInstance{
 		port:    port,
 		storage: storages.New(),
