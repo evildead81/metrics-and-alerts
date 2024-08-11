@@ -51,6 +51,8 @@ func (t *ServerInstance) update(w http.ResponseWriter, r *http.Request) {
 		if parsed, err := strconv.ParseInt(metricValueParam, 10, 64); err == nil {
 			t.storage.UpdateCounter(metricNameParam, parsed)
 			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
 		}
 	default:
 		w.WriteHeader(http.StatusBadRequest)
