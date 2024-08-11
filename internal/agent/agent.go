@@ -47,6 +47,7 @@ func (t Agent) Run() {
 		}
 	}()
 	for {
+		continue
 	}
 }
 
