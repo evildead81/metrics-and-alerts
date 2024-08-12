@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"math/rand"
 	"net/http"
 	"runtime"
@@ -18,9 +19,10 @@ type Agent struct {
 	pollInterval   time.Duration
 	reportInterval time.Duration
 	mutex          *sync.Mutex
+	ctx            context.Context
 }
 
-func New(host string, pollInterval time.Duration, reportInterval time.Duration) *Agent {
+func New(host string, pollInterval time.Duration, reportInterval time.Duration, ctx context.Context) *Agent {
 	return &Agent{
 		gaugeMetrics:   make(map[string]float64),
 		counterMetrics: make(map[string]int64),
@@ -29,35 +31,38 @@ func New(host string, pollInterval time.Duration, reportInterval time.Duration) 
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
 		mutex:          &sync.Mutex{},
+		ctx:            ctx,
 	}
 }
 
-func (t Agent) Run() {
-	go func() {
+func (t Agent) Run() error {
+	go func() error {
 		for {
-			t.refreshMetrics()
-			time.Sleep(t.pollInterval)
-		}
-	}()
-
-	go func() {
-		for {
-			t.sendMetrics()
 			time.Sleep(t.reportInterval)
+			err := t.sendMetrics()
+			if err != nil {
+				return err
+			}
 		}
 	}()
 
 	for {
-		continue
+		select {
+		case <-t.ctx.Done():
+			return nil
+		default:
+			t.refreshMetrics()
+			time.Sleep(t.pollInterval)
+		}
 	}
 }
 
-func (t *Agent) sendMetrics() {
+func (t *Agent) sendMetrics() error {
 	for name, value := range t.gaugeMetrics {
 		url := strings.Join([]string{t.host, "/update/gauge/", name, "/", strconv.FormatFloat(value, 'f', -1, 64)}, "")
 		response, err := http.Post(url, "text/plain", nil)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		response.Body.Close()
 	}
@@ -65,10 +70,11 @@ func (t *Agent) sendMetrics() {
 		url := strings.Join([]string{t.host, "/update/counter/", name, "/", strconv.FormatInt(value, 10)}, "")
 		response, err := http.Post(url, "text/plain", nil)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		response.Body.Close()
 	}
+	return nil
 }
 
 func (t *Agent) refreshMetrics() {
