@@ -1,8 +1,6 @@
 package storages
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type MemStorage struct {
 	gaugeMetrics   map[string]float64
@@ -17,20 +15,30 @@ func (t *MemStorage) UpdateCounter(name string, value int64) {
 	} else {
 		t.counterMetrics[name] = value
 	}
-	t.PrintValues()
+	t.printCounters()
 }
 
 func (t *MemStorage) UpdateGauge(name string, value float64) {
 	t.gaugeMetrics[name] = value
-	t.PrintValues()
+	t.printGauges()
 }
 
-func (t MemStorage) PrintValues() {
+func (t MemStorage) GetCounters() map[string]int64 {
+	return t.counterMetrics
+}
+
+func (t MemStorage) GetGauges() map[string]float64 {
+	return t.gaugeMetrics
+}
+
+func (t MemStorage) printCounters() {
 	for key, value := range t.counterMetrics {
-		fmt.Println("Metric type: counter", "Name", key, "Val", value)
+		fmt.Println("Counter", "Name", key, "Value", value)
 	}
+}
+func (t MemStorage) printGauges() {
 	for key, value := range t.gaugeMetrics {
-		fmt.Println("Metric type: gauge", "Name", key, "Val", value)
+		fmt.Println("Gauge", "Name", key, "Value", value)
 	}
 }
 

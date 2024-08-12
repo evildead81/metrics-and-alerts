@@ -46,6 +46,7 @@ func (t Agent) Run() {
 			time.Sleep(t.reportInterval)
 		}
 	}()
+
 	for {
 		continue
 	}
