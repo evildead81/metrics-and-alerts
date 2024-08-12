@@ -51,16 +51,18 @@ func GetMetric(storage storages.Storage) http.HandlerFunc {
 			value, err := storage.GetGaugeValueByName(metricNameParam)
 			if err != nil {
 				rw.WriteHeader(http.StatusNotFound)
+			} else {
+				rw.WriteHeader(http.StatusOK)
+				io.WriteString(rw, strconv.FormatFloat(value, 'f', -1, 64))
 			}
-			rw.WriteHeader(http.StatusOK)
-			io.WriteString(rw, strconv.FormatFloat(value, 'f', -1, 64))
 		case metricTypeParam == consts.Counter:
 			value, err := storage.GetCountValueByName(metricNameParam)
 			if err != nil {
 				rw.WriteHeader(http.StatusNotFound)
+			} else {
+				rw.WriteHeader(http.StatusOK)
+				io.WriteString(rw, strconv.FormatInt(value, 10))
 			}
-			rw.WriteHeader(http.StatusOK)
-			io.WriteString(rw, strconv.FormatInt(value, 10))
 		default:
 			rw.WriteHeader(http.StatusNotFound)
 		}
