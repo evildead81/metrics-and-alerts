@@ -1,6 +1,9 @@
 package storages
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type MemStorage struct {
 	gaugeMetrics   map[string]float64
@@ -29,6 +32,22 @@ func (t MemStorage) GetCounters() map[string]int64 {
 
 func (t MemStorage) GetGauges() map[string]float64 {
 	return t.gaugeMetrics
+}
+
+func (t MemStorage) GetGaugeValueByName(name string) (float64, error) {
+	value, ok := t.gaugeMetrics[name]
+	if !ok {
+		return 0, errors.New("Gauge metric with name " + name + " not found")
+	}
+	return value, nil
+}
+
+func (t MemStorage) GetCountValueByName(name string) (int64, error) {
+	value, ok := t.counterMetrics[name]
+	if !ok {
+		return 0, errors.New("Counter metric with name " + name + " not found")
+	}
+	return value, nil
 }
 
 func (t MemStorage) printCounters() {

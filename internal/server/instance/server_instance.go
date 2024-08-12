@@ -5,6 +5,7 @@ import (
 
 	"github.com/evildead81/metrics-and-alerts/internal/server/handlers"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
+	"github.com/go-chi/chi/v5"
 )
 
 type ServerInstance struct {
@@ -21,9 +22,11 @@ func New(port string) *ServerInstance {
 }
 
 func (t ServerInstance) Run() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", handlers.MemStorageUpdateHandler(t.storage))
-	err := http.ListenAndServe(":"+t.port, mux)
+	r := chi.NewRouter()
+	r.Post("/update/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricHandler(t.storage))
+	r.Get("/value/{metricType}/{metricName}", handlers.GetMetric(t.storage))
+	r.Get("/", handlers.GetPage(t.storage))
+	err := http.ListenAndServe(":"+t.port, r)
 	if err != nil {
 		panic(err)
 	}

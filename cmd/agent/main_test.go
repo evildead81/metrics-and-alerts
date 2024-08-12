@@ -15,7 +15,7 @@ import (
 
 func TestAgent(t *testing.T) {
 	storage := storages.New()
-	h := http.HandlerFunc(handlers.MemStorageUpdateHandler(storage))
+	h := http.HandlerFunc(handlers.UpdateMetricHandler(storage))
 	s := httptest.NewServer(h)
 	defer s.Close()
 	_, cancel := context.WithTimeout(context.Background(), 4*time.Second)
