@@ -55,11 +55,19 @@ func (t Agent) Run() {
 func (t *Agent) sendMetrics() {
 	for name, value := range t.gaugeMetrics {
 		url := strings.Join([]string{t.host, "/update/gauge/", name, "/", strconv.FormatFloat(value, 'f', -1, 64)}, "")
-		http.Post(url, "text/plain", nil)
+		response, err := http.Post(url, "text/plain", nil)
+		if err != nil {
+			panic(err)
+		}
+		response.Body.Close()
 	}
 	for name, value := range t.counterMetrics {
 		url := strings.Join([]string{t.host, "/update/counter/", name, "/", strconv.FormatInt(value, 10)}, "")
-		http.Post(url, "text/plain", nil)
+		response, err := http.Post(url, "text/plain", nil)
+		if err != nil {
+			panic(err)
+		}
+		response.Body.Close()
 	}
 }
 
