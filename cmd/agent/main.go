@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	enpoint := flag.String("a", "http://localhost:8080", "server endpoint")
+	enpoint := flag.String("a", "localhost:8080", "server endpoint")
 	reportInterval := flag.Int("r", 10, "Report interval")
 	pollInterval := flag.Int("p", 2, "Poll interval")
 	flag.Parse()
