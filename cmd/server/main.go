@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
-	"log"
 
 	"github.com/caarlos0/env"
 	"github.com/evildead81/metrics-and-alerts/internal/server"
 	"github.com/evildead81/metrics-and-alerts/internal/server/instance"
+	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 			endpoint = endpointParam
 		}
 	default:
-		log.Fatal("Server env params parse error")
+		logger.Logger.Fatalw("Server env params parse error", "error", err.Error())
 		endpoint = endpointParam
 	}
 

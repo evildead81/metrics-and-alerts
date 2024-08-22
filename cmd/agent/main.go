@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"time"
 
@@ -47,8 +46,6 @@ func main() {
 		reportInterval = reportIntervalParam
 		pollInterval = pollIntervalParam
 	}
-
-	fmt.Println(*endpoint)
 
 	agent.New(
 		*endpoint,

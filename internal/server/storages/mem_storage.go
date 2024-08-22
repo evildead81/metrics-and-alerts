@@ -18,12 +18,10 @@ func (t *MemStorage) UpdateCounter(name string, value int64) {
 	} else {
 		t.counterMetrics[name] = value
 	}
-	t.printCounters()
 }
 
 func (t *MemStorage) UpdateGauge(name string, value float64) {
 	t.gaugeMetrics[name] = value
-	t.printGauges()
 }
 
 func (t MemStorage) GetCounters() map[string]int64 {

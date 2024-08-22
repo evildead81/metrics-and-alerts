@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/evildead81/metrics-and-alerts/internal/server/handlers"
+	"github.com/evildead81/metrics-and-alerts/internal/server/middlewares"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 	"github.com/go-chi/chi/v5"
 )
@@ -23,6 +24,7 @@ func New(endpoint string) *ServerInstance {
 
 func (t ServerInstance) Run() {
 	r := chi.NewRouter()
+	r.Use(middlewares.WithLogging)
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricHandler(t.storage))
 	r.Get("/value/{metricType}/{metricName}", handlers.GetMetric(t.storage))
 	r.Get("/", handlers.GetPage(t.storage))
