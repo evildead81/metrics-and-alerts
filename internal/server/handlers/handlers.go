@@ -42,7 +42,7 @@ func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func UpdateMetricByJsonHandler(storage storages.Storage) http.HandlerFunc {
+func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var metric contracts.Metrics
 		var buf bytes.Buffer
@@ -70,7 +70,7 @@ func UpdateMetricByJsonHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func GetMetricByParams(storage storages.Storage) http.HandlerFunc {
+func GetMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricTypeParam := r.PathValue("metricType")
 		metricNameParam := r.PathValue("metricName")
@@ -98,7 +98,7 @@ func GetMetricByParams(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func GetMetricByJson(storage storages.Storage) http.HandlerFunc {
+func GetMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var metric contracts.Metrics
 		var buf bytes.Buffer
@@ -115,7 +115,7 @@ func GetMetricByJson(storage storages.Storage) http.HandlerFunc {
 		}
 
 		if metric.MType != consts.Gauge && metric.MType != consts.Counter {
-			http.Error(rw, err.Error(), http.StatusNotFound)
+			http.Error(rw, "Incorrect type", http.StatusNotFound)
 			return
 		}
 
@@ -151,7 +151,7 @@ func GetMetricByJson(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func GetPage(storage storages.Storage) http.HandlerFunc {
+func GetPageHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		sb := strings.Builder{}
 		gauges := storage.GetGauges()
