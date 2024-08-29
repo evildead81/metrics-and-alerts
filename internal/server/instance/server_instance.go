@@ -26,7 +26,7 @@ func (t ServerInstance) Run() {
 	r := chi.NewRouter()
 	r.Use(middlewares.WithLogging)
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.GetMetricByParamsHandler(t.storage))
+		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage))
 	})
 	r.Get("/value/{metricType}/{metricName}", handlers.GetMetricByParamsHandler(t.storage))
