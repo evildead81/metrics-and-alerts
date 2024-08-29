@@ -29,8 +29,10 @@ func (t ServerInstance) Run() {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage))
 	})
-	r.Get("/value/{metricType}/{metricName}", handlers.GetMetricByParamsHandler(t.storage))
-	r.Post("/value/", handlers.GetMetricByJSONHandler(t.storage))
+	r.Route("/value", func(r chi.Router) {
+		r.Get("/{metricType}/{metricName}", handlers.GetMetricByParamsHandler(t.storage))
+		r.Post("/", handlers.GetMetricByJSONHandler(t.storage))
+	})
 	r.Get("/", handlers.GetPageHandler(t.storage))
 	err := http.ListenAndServe(t.endpoint, r)
 	if err != nil {
