@@ -25,8 +25,10 @@ func New(endpoint string) *ServerInstance {
 func (t ServerInstance) Run() {
 	r := chi.NewRouter()
 	r.Use(middlewares.WithLogging)
-	r.Post("/update/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
-	r.Post("/update/", handlers.UpdateMetricByJSONHandler(t.storage))
+	r.Route("/update", func(r chi.Router) {
+		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.GetMetricByParamsHandler(t.storage))
+		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage))
+	})
 	r.Get("/value/{metricType}/{metricName}", handlers.GetMetricByParamsHandler(t.storage))
 	r.Post("/value/", handlers.GetMetricByJSONHandler(t.storage))
 	r.Get("/", handlers.GetPageHandler(t.storage))
