@@ -1,14 +1,17 @@
 package agent
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"math/rand"
 	"net/http"
 	"runtime"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/evildead81/metrics-and-alerts/internal/contracts"
+	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 )
 
 type Agent struct {
@@ -58,17 +61,35 @@ func (t Agent) Run() error {
 }
 
 func (t *Agent) sendMetrics() error {
+	url := t.host + "/update/"
 	for name, value := range t.gaugeMetrics {
-		url := strings.Join([]string{t.host, "/update/gauge/", name, "/", strconv.FormatFloat(value, 'f', -1, 64)}, "")
-		response, err := http.Post(url, "text/plain", nil)
+		metric := contracts.Metrics{
+			ID:    name,
+			Value: &value,
+			MType: consts.Gauge,
+		}
+		serialized, serErr := json.Marshal(metric)
+		if serErr != nil {
+			return serErr
+		}
+		response, err := http.Post(url, "application/json", bytes.NewBuffer(serialized))
 		if err != nil {
 			return err
 		}
 		response.Body.Close()
 	}
 	for name, value := range t.counterMetrics {
-		url := strings.Join([]string{t.host, "/update/counter/", name, "/", strconv.FormatInt(value, 10)}, "")
-		response, err := http.Post(url, "text/plain", nil)
+		metric := contracts.Metrics{
+			ID:    name,
+			Delta: &value,
+			MType: consts.Counter,
+		}
+		serialized, serErr := json.Marshal(metric)
+		if serErr != nil {
+			return serErr
+		}
+		response, err := http.Post(url, "application/json", bytes.NewBuffer(serialized))
+
 		if err != nil {
 			return err
 		}
