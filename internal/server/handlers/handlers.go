@@ -80,8 +80,8 @@ func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 			http.Error(rw, "Server error", http.StatusInternalServerError)
 			return
 		}
-		rw.WriteHeader(http.StatusOK)
 		rw.Header().Add("Content-type", "application/json")
+		rw.WriteHeader(http.StatusOK)
 		rw.Write(bytes)
 	}
 }
@@ -161,8 +161,8 @@ func GetMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 			http.Error(rw, err.Error(), http.StatusNotFound)
 			return
 		}
-		rw.WriteHeader(http.StatusOK)
 		rw.Header().Add("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusOK)
 		rw.Write(bytes)
 	}
 }
