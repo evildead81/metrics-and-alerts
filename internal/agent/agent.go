@@ -42,10 +42,7 @@ func (t Agent) Run() error {
 	go func() error {
 		for {
 			time.Sleep(t.reportInterval)
-			err := t.sendMetrics()
-			if err != nil {
-				return err
-			}
+			t.sendMetrics()
 		}
 	}()
 
