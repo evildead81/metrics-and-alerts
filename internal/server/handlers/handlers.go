@@ -58,15 +58,31 @@ func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 			return
 		}
 
-		if metric.MType == consts.Gauge {
+		newMetric := contracts.Metrics{
+			ID:    metric.ID,
+			MType: metric.MType,
+		}
+
+		switch {
+		case metric.MType == consts.Gauge:
 			storage.UpdateGauge(metric.ID, *metric.Value)
-		}
-
-		if metric.MType == consts.Counter {
+			newMetric.Value = metric.Value
+		case metric.MType == consts.Counter:
 			storage.UpdateCounter(metric.ID, *metric.Delta)
+			newMetric.Delta = metric.Delta
+		default:
+			http.Error(rw, "Incorrect type", http.StatusBadRequest)
+			return
 		}
 
+		bytes, err := json.MarshalIndent(newMetric, "", "   ")
+		if err != nil {
+			http.Error(rw, "Server error", http.StatusInternalServerError)
+			return
+		}
 		rw.WriteHeader(http.StatusOK)
+		rw.Header().Add("Content-type", "application/json")
+		rw.Write(bytes)
 	}
 }
 
