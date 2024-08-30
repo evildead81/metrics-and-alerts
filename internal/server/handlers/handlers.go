@@ -18,7 +18,6 @@ func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 		metricTypeParam := r.PathValue("metricType")
 		metricNameParam := r.PathValue("metricName")
 		metricValueParam := r.PathValue("metricValue")
-
 		switch {
 		case len(metricNameParam) == 0:
 			rw.WriteHeader(http.StatusNotFound)
@@ -44,7 +43,6 @@ func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 
 func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		var metric contracts.Metrics
 		var buf bytes.Buffer
 		_, err := buf.ReadFrom(r.Body)
 
@@ -53,8 +51,10 @@ func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 			return
 		}
 
-		if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
+		var metric contracts.Metrics
+		if unmarshalErr := json.Unmarshal(buf.Bytes(), &metric); unmarshalErr != nil {
+
+			http.Error(rw, unmarshalErr.Error(), http.StatusBadRequest)
 			return
 		}
 
