@@ -81,6 +81,7 @@ func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 			return
 		}
 		rw.Header().Add("Content-type", "application/json")
+		rw.Header().Add("Accept-Encoding", "gzip")
 		rw.WriteHeader(http.StatusOK)
 		rw.Write(bytes)
 	}
@@ -162,6 +163,7 @@ func GetMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 			return
 		}
 		rw.Header().Add("Content-Type", "application/json")
+		rw.Header().Add("Accept-Encoding", "gzip")
 		rw.WriteHeader(http.StatusOK)
 		rw.Write(bytes)
 	}
@@ -198,6 +200,8 @@ func GetPageHandler(storage storages.Storage) http.HandlerFunc {
 		}
 		sb.WriteString("</div>")
 		sb.WriteString("</body>")
+		rw.Header().Add("Content-Type", "text/html")
+		rw.Header().Add("Accept-Encoding", "gzip")
 		rw.WriteHeader(http.StatusOK)
 		io.WriteString(rw, sb.String())
 	}

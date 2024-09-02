@@ -7,6 +7,7 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/server/middlewares"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 	"github.com/go-chi/chi/v5"
+	chiMid "github.com/go-chi/chi/v5/middleware"
 )
 
 type ServerInstance struct {
@@ -25,6 +26,7 @@ func New(endpoint string) *ServerInstance {
 func (t ServerInstance) Run() {
 	r := chi.NewRouter()
 	r.Use(middlewares.WithLogging)
+	r.Use(chiMid.Compress(5))
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage))

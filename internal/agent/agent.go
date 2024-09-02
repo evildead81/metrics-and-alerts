@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"math/rand"
@@ -65,15 +66,7 @@ func (t *Agent) sendMetrics() error {
 			Value: &value,
 			MType: consts.Gauge,
 		}
-		serialized, serErr := json.Marshal(metric)
-		if serErr != nil {
-			return serErr
-		}
-		response, err := http.Post(url, "application/json", bytes.NewBuffer(serialized))
-		if err != nil {
-			return err
-		}
-		response.Body.Close()
+		serializeAndPost(url, &metric)
 	}
 	for name, value := range t.counterMetrics {
 		metric := contracts.Metrics{
@@ -81,17 +74,36 @@ func (t *Agent) sendMetrics() error {
 			Delta: &value,
 			MType: consts.Counter,
 		}
-		serialized, serErr := json.Marshal(metric)
-		if serErr != nil {
-			return serErr
-		}
-		response, err := http.Post(url, "application/json", bytes.NewBuffer(serialized))
-
-		if err != nil {
-			return err
-		}
-		response.Body.Close()
+		serializeAndPost(url, &metric)
 	}
+	return nil
+}
+
+func serializeAndPost(url string, metric *contracts.Metrics) error {
+	serialized, serErr := json.Marshal(metric)
+	if serErr != nil {
+		return serErr
+	}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(serialized))
+	if err != nil {
+		return err
+	}
+
+	buf := bytes.NewBuffer(nil)
+	zb := gzip.NewWriter(buf)
+	_, zipErr := zb.Write(serialized)
+	if zipErr != nil {
+		return zipErr
+	}
+	defer zb.Close()
+
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Accept-Encoding", "gzip")
+	_, reqErr := http.DefaultClient.Do(req)
+	if reqErr != nil {
+		return reqErr
+	}
+
 	return nil
 }
 
