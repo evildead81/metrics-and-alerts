@@ -99,10 +99,11 @@ func serializeAndPost(url string, metric *contracts.Metrics) error {
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept-Encoding", "gzip")
-	_, reqErr := http.DefaultClient.Do(req)
+	response, reqErr := http.DefaultClient.Do(req)
 	if reqErr != nil {
 		return reqErr
 	}
+	defer response.Body.Close()
 
 	return nil
 }
