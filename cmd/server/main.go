@@ -40,7 +40,7 @@ func main() {
 		} else {
 			fileStoragePath = fileStoragePathParam
 		}
-		if cfg.Restore != false {
+		if cfg.Restore {
 			restore = &cfg.Restore
 		} else {
 			restore = restoreParam
