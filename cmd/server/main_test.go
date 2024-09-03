@@ -72,7 +72,7 @@ func TestStatusHandler(t *testing.T) {
 			request.SetPathValue("metricName", test.params.metricName)
 			request.SetPathValue("metricValue", test.params.metricValue)
 			w := httptest.NewRecorder()
-			storage := storages.New()
+			storage := storages.New("./metrics.json", true)
 			h := http.HandlerFunc(handlers.UpdateMetricByParamsHandler(storage))
 			h(w, request)
 
