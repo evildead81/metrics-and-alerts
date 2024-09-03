@@ -14,7 +14,7 @@ import (
 )
 
 func TestAgent(t *testing.T) {
-	storage := storages.New()
+	storage := storages.New("./metrics.json", true)
 	h := http.HandlerFunc(handlers.UpdateMetricByParamsHandler(storage))
 	s := httptest.NewServer(h)
 	defer s.Close()
