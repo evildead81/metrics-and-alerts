@@ -92,10 +92,10 @@ func (t MemStorage) Restore() error {
 
 func (t MemStorage) Write() error {
 	file, err := os.Create(t.storagePath)
-	defer file.Close()
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	var metrics = make([]contracts.Metrics, 0)
 	for name, value := range t.gaugeMetrics {
