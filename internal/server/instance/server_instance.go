@@ -46,7 +46,7 @@ func (t ServerInstance) Run() {
 	t.runSaver()
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    t.endpoint,
 		Handler: r,
 	}
 	srvErrs := make(chan error, 1)
