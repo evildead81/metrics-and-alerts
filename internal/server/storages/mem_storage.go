@@ -127,7 +127,7 @@ func New(storagePath string, restore bool) *MemStorage {
 		storagePath:    storagePath,
 	}
 
-	if restore == true {
+	if restore {
 		storage.Restore()
 	}
 

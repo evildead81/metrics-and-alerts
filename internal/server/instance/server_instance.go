@@ -65,11 +65,6 @@ func (t ServerInstance) Run() {
 	case sig := <-quit:
 		shutdown(sig)
 	}
-
-	err := http.ListenAndServe(t.endpoint, r)
-	if err != nil {
-		panic(err)
-	}
 }
 
 func (t ServerInstance) gracefulShutdown(srv *http.Server) func(reason interface{}) {
