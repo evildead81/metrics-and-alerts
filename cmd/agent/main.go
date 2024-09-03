@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	var endpointParam = flag.String("a", "localhost:8080", "server endpoint")
+	var endpointParam = flag.String("a", "localhost:8080", "Server endpoint")
 	var reportIntervalParam = flag.Int64("r", 10, "Report interval")
 	var pollIntervalParam = flag.Int64("p", 2, "Poll interval")
 	flag.Parse()

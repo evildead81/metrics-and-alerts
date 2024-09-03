@@ -7,4 +7,6 @@ type Storage interface {
 	GetGauges() map[string]float64
 	GetGaugeValueByName(name string) (float64, error)
 	GetCountValueByName(name string) (int64, error)
+	Restore() error
+	Write() error
 }

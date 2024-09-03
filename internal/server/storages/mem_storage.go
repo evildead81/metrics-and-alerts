@@ -1,13 +1,19 @@
 package storages
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+
+	"github.com/evildead81/metrics-and-alerts/internal/contracts"
+	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 )
 
 type MemStorage struct {
 	gaugeMetrics   map[string]float64
 	counterMetrics map[string]int64
+	storagePath    string
 	Storage
 }
 
@@ -59,6 +65,71 @@ func (t MemStorage) printGauges() {
 	}
 }
 
-func New() *MemStorage {
-	return &MemStorage{gaugeMetrics: make(map[string]float64), counterMetrics: map[string]int64{}}
+func (t MemStorage) Restore() error {
+	content, err := os.ReadFile(t.storagePath)
+	if err != nil {
+		return err
+	}
+
+	var metrics []contracts.Metrics
+	err = json.Unmarshal(content, &metrics)
+
+	if err != nil {
+		return err
+	}
+
+	for _, item := range metrics {
+		if item.MType == consts.Gauge {
+			t.UpdateGauge(item.ID, *item.Value)
+		}
+		if item.MType == consts.Counter {
+			t.UpdateCounter(item.ID, *item.Delta)
+		}
+	}
+
+	return nil
+}
+
+func (t MemStorage) Write() error {
+	file, err := os.Create(t.storagePath)
+	defer file.Close()
+	if err != nil {
+		return err
+	}
+
+	var metrics = make([]contracts.Metrics, 0)
+	for name, value := range t.gaugeMetrics {
+		metrics = append(metrics, contracts.Metrics{ID: name, MType: consts.Gauge, Value: &value})
+	}
+	for name, value := range t.counterMetrics {
+		metrics = append(metrics, contracts.Metrics{ID: name, MType: consts.Counter, Delta: &value})
+	}
+
+	serialized, marshalErr := json.MarshalIndent(metrics, "", "   ")
+
+	if marshalErr != nil {
+		return marshalErr
+	}
+
+	_, writeErr := file.Write(serialized)
+
+	if writeErr != nil {
+		return writeErr
+	}
+
+	return nil
+}
+
+func New(storagePath string, restore bool) *MemStorage {
+	storage := &MemStorage{
+		gaugeMetrics:   make(map[string]float64),
+		counterMetrics: map[string]int64{},
+		storagePath:    storagePath,
+	}
+
+	if restore {
+		storage.Restore()
+	}
+
+	return storage
 }
