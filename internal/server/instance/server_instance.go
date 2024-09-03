@@ -1,7 +1,11 @@
 package instance
 
 import (
+	"context"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/server/handlers"
@@ -40,10 +44,41 @@ func (t ServerInstance) Run() {
 	})
 	r.Get("/", handlers.GetPageHandler(t.storage))
 	t.runSaver()
+
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
+	srvErrs := make(chan error, 1)
+	go func() {
+		srvErrs <- srv.ListenAndServe()
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
+	shutdown := t.gracefulShutdown(srv)
+
+	select {
+	case err := <-srvErrs:
+		shutdown(err)
+	case sig := <-quit:
+		shutdown(sig)
+	}
+
 	err := http.ListenAndServe(t.endpoint, r)
 	if err != nil {
-		t.storage.Write()
 		panic(err)
+	}
+}
+
+func (t ServerInstance) gracefulShutdown(srv *http.Server) func(reason interface{}) {
+	return func(reason interface{}) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		t.storage.Write()
+		srv.Shutdown(ctx)
 	}
 }
 
