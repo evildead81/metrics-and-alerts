@@ -1,24 +1,24 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
 
-func UpdateMetricHandler(storage storages.Storage) http.HandlerFunc {
+func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricTypeParam := r.PathValue("metricType")
 		metricNameParam := r.PathValue("metricName")
 		metricValueParam := r.PathValue("metricValue")
-
 		switch {
-		case r.Method != http.MethodPost:
-			rw.WriteHeader(http.StatusMethodNotAllowed)
 		case len(metricNameParam) == 0:
 			rw.WriteHeader(http.StatusNotFound)
 		case metricTypeParam == consts.Gauge:
@@ -41,7 +41,53 @@ func UpdateMetricHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func GetMetric(storage storages.Storage) http.HandlerFunc {
+func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		var buf bytes.Buffer
+		_, err := buf.ReadFrom(r.Body)
+
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var metric contracts.Metrics
+		if unmarshalErr := json.Unmarshal(buf.Bytes(), &metric); unmarshalErr != nil {
+
+			http.Error(rw, unmarshalErr.Error(), http.StatusBadRequest)
+			return
+		}
+
+		newMetric := contracts.Metrics{
+			ID:    metric.ID,
+			MType: metric.MType,
+		}
+
+		switch {
+		case metric.MType == consts.Gauge:
+			storage.UpdateGauge(metric.ID, *metric.Value)
+			newMetric.Value = metric.Value
+		case metric.MType == consts.Counter:
+			storage.UpdateCounter(metric.ID, *metric.Delta)
+			newMetric.Delta = metric.Delta
+		default:
+			http.Error(rw, "Incorrect type", http.StatusBadRequest)
+			return
+		}
+
+		bytes, err := json.MarshalIndent(newMetric, "", "   ")
+		if err != nil {
+			http.Error(rw, "Server error", http.StatusInternalServerError)
+			return
+		}
+		rw.Header().Add("Content-type", "application/json")
+		rw.Header().Add("Accept-Encoding", "gzip")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write(bytes)
+	}
+}
+
+func GetMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricTypeParam := r.PathValue("metricType")
 		metricNameParam := r.PathValue("metricName")
@@ -50,7 +96,7 @@ func GetMetric(storage storages.Storage) http.HandlerFunc {
 		case metricTypeParam == consts.Gauge:
 			value, err := storage.GetGaugeValueByName(metricNameParam)
 			if err != nil {
-				rw.WriteHeader(http.StatusNotFound)
+				http.Error(rw, err.Error(), http.StatusNotFound)
 			} else {
 				rw.WriteHeader(http.StatusOK)
 				io.WriteString(rw, strconv.FormatFloat(value, 'f', -1, 64))
@@ -58,7 +104,7 @@ func GetMetric(storage storages.Storage) http.HandlerFunc {
 		case metricTypeParam == consts.Counter:
 			value, err := storage.GetCountValueByName(metricNameParam)
 			if err != nil {
-				rw.WriteHeader(http.StatusNotFound)
+				http.Error(rw, err.Error(), http.StatusNotFound)
 			} else {
 				rw.WriteHeader(http.StatusOK)
 				io.WriteString(rw, strconv.FormatInt(value, 10))
@@ -69,7 +115,61 @@ func GetMetric(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func GetPage(storage storages.Storage) http.HandlerFunc {
+func GetMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		var metric contracts.Metrics
+		var buf bytes.Buffer
+		_, err := buf.ReadFrom(r.Body)
+		defer r.Body.Close()
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if metric.MType != consts.Gauge && metric.MType != consts.Counter {
+			http.Error(rw, "Incorrect type", http.StatusNotFound)
+			return
+		}
+
+		result := contracts.Metrics{}
+		result.ID = metric.ID
+		result.MType = metric.MType
+		if metric.MType == consts.Gauge {
+			value, err := storage.GetGaugeValueByName(metric.ID)
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusNotFound)
+				return
+			}
+			result.Value = &value
+		}
+
+		if metric.MType == consts.Counter {
+			value, err := storage.GetCountValueByName(metric.ID)
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusNotFound)
+				return
+			}
+			result.Delta = &value
+		}
+
+		bytes, err := json.MarshalIndent(result, "", "   ")
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusNotFound)
+			return
+		}
+		rw.Header().Add("Content-Type", "application/json")
+		rw.Header().Add("Accept-Encoding", "gzip")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write(bytes)
+	}
+}
+
+func GetPageHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		sb := strings.Builder{}
 		gauges := storage.GetGauges()
@@ -100,6 +200,8 @@ func GetPage(storage storages.Storage) http.HandlerFunc {
 		}
 		sb.WriteString("</div>")
 		sb.WriteString("</body>")
+		rw.Header().Add("Content-Type", "text/html")
+		rw.Header().Add("Accept-Encoding", "gzip")
 		rw.WriteHeader(http.StatusOK)
 		io.WriteString(rw, sb.String())
 	}

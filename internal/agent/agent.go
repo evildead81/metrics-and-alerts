@@ -1,14 +1,18 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"math/rand"
 	"net/http"
 	"runtime"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/evildead81/metrics-and-alerts/internal/contracts"
+	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 )
 
 type Agent struct {
@@ -39,10 +43,7 @@ func (t Agent) Run() error {
 	go func() error {
 		for {
 			time.Sleep(t.reportInterval)
-			err := t.sendMetrics()
-			if err != nil {
-				return err
-			}
+			t.sendMetrics()
 		}
 	}()
 
@@ -58,22 +59,52 @@ func (t Agent) Run() error {
 }
 
 func (t *Agent) sendMetrics() error {
+	url := t.host + "/update/"
 	for name, value := range t.gaugeMetrics {
-		url := strings.Join([]string{t.host, "/update/gauge/", name, "/", strconv.FormatFloat(value, 'f', -1, 64)}, "")
-		response, err := http.Post(url, "text/plain", nil)
-		if err != nil {
-			return err
+		metric := contracts.Metrics{
+			ID:    name,
+			Value: &value,
+			MType: consts.Gauge,
 		}
-		response.Body.Close()
+		serializeAndPost(url, &metric)
 	}
 	for name, value := range t.counterMetrics {
-		url := strings.Join([]string{t.host, "/update/counter/", name, "/", strconv.FormatInt(value, 10)}, "")
-		response, err := http.Post(url, "text/plain", nil)
-		if err != nil {
-			return err
+		metric := contracts.Metrics{
+			ID:    name,
+			Delta: &value,
+			MType: consts.Counter,
 		}
-		response.Body.Close()
+		serializeAndPost(url, &metric)
 	}
+	return nil
+}
+
+func serializeAndPost(url string, metric *contracts.Metrics) error {
+	serialized, serErr := json.Marshal(metric)
+	if serErr != nil {
+		return serErr
+	}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(serialized))
+	if err != nil {
+		return err
+	}
+
+	buf := bytes.NewBuffer(nil)
+	zb := gzip.NewWriter(buf)
+	_, zipErr := zb.Write(serialized)
+	if zipErr != nil {
+		return zipErr
+	}
+	defer zb.Close()
+
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Accept-Encoding", "gzip")
+	response, reqErr := http.DefaultClient.Do(req)
+	if reqErr != nil {
+		return reqErr
+	}
+	defer response.Body.Close()
+
 	return nil
 }
 
@@ -86,10 +117,12 @@ func (t *Agent) refreshMetrics() {
 	t.gaugeMetrics["Frees"] = float64(stats.Frees)
 	t.gaugeMetrics["GCCPUFraction"] = float64(stats.GCCPUFraction)
 	t.gaugeMetrics["GCSys"] = float64(stats.GCSys)
+	t.gaugeMetrics["HeapAlloc"] = float64(stats.HeapAlloc)
 	t.gaugeMetrics["HeapIdle"] = float64(stats.HeapIdle)
 	t.gaugeMetrics["HeapInuse"] = float64(stats.HeapInuse)
 	t.gaugeMetrics["HeapObjects"] = float64(stats.HeapObjects)
 	t.gaugeMetrics["HeapReleased"] = float64(stats.HeapReleased)
+	t.gaugeMetrics["HeapSys"] = float64(stats.HeapSys)
 	t.gaugeMetrics["LastGC"] = float64(stats.LastGC)
 	t.gaugeMetrics["Lookups"] = float64(stats.Lookups)
 	t.gaugeMetrics["MCacheInuse"] = float64(stats.MCacheInuse)
