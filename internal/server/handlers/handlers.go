@@ -2,11 +2,15 @@ package handlers
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
@@ -204,5 +208,18 @@ func GetPageHandler(storage storages.Storage) http.HandlerFunc {
 		rw.Header().Add("Accept-Encoding", "gzip")
 		rw.WriteHeader(http.StatusOK)
 		io.WriteString(rw, sb.String())
+	}
+}
+
+func PingDB(db *sql.DB) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		if err := db.PingContext(ctx); err != nil {
+			fmt.Println(err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		rw.WriteHeader(http.StatusOK)
 	}
 }

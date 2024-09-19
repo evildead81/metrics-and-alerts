@@ -2,6 +2,7 @@ package instance
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,20 +14,24 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 	"github.com/go-chi/chi/v5"
 	chiMid "github.com/go-chi/chi/v5/middleware"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type ServerInstance struct {
 	endpoint      string
 	storage       storages.Storage
 	storeInterval time.Duration
+	db            *sql.DB
 }
 
-func New(endpoint string, storeInterval time.Duration, storagePath string, restore bool) *ServerInstance {
+func New(endpoint string, storeInterval time.Duration, storagePath string, restore bool, db *sql.DB) *ServerInstance {
 	instance := ServerInstance{
 		endpoint:      endpoint,
 		storage:       storages.New(storagePath, restore),
 		storeInterval: storeInterval,
 	}
+
+	instance.db = db
 	return &instance
 }
 
@@ -43,6 +48,7 @@ func (t ServerInstance) Run() {
 		r.Post("/", handlers.GetMetricByJSONHandler(t.storage))
 	})
 	r.Get("/", handlers.GetPageHandler(t.storage))
+	r.Get("/ping", handlers.PingDB(t.db))
 	t.runSaver()
 
 	srv := &http.Server{
