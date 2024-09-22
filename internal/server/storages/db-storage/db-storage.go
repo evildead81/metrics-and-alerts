@@ -81,7 +81,7 @@ func (s DBStorage) isGaugeExists(name string) bool {
 func (s DBStorage) GetCounters() map[string]int64 {
 	counters := make(map[string]int64)
 	rows, err := s.db.Query("SELECT * FROM counters")
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return counters
 	}
 	defer rows.Close()
@@ -101,7 +101,7 @@ func (s DBStorage) GetCounters() map[string]int64 {
 func (s DBStorage) GetGauges() map[string]float64 {
 	gauges := make(map[string]float64)
 	rows, err := s.db.Query("SELECT * FROM gauges")
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return gauges
 	}
 	defer rows.Close()
@@ -138,10 +138,10 @@ func (s DBStorage) GetCountValueByName(name string) (int64, error) {
 	return value, nil
 }
 
-func (t DBStorage) Restore() error {
+func (s DBStorage) Restore() error {
 	return nil
 }
 
-func (t DBStorage) Write() error {
+func (s DBStorage) Write() error {
 	return nil
 }
