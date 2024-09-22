@@ -5,10 +5,12 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"math/rand"
 	"net/http"
 	"runtime"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
@@ -24,6 +26,7 @@ type Agent struct {
 	reportInterval time.Duration
 	mutex          *sync.Mutex
 	ctx            context.Context
+	sendAttempts   uint8
 }
 
 func New(host string, pollInterval time.Duration, reportInterval time.Duration, ctx context.Context) *Agent {
@@ -97,6 +100,13 @@ func (t *Agent) sendMeticList() error {
 
 	err := t.serializeMetricsAndPost(&metrics)
 	if err != nil {
+		if errors.Is(err, syscall.ECONNREFUSED) {
+			if t.sendAttempts < 3 {
+				t.sendAttempts += 1
+				time.Sleep(time.Duration(t.sendAttempts*2-1) * time.Second)
+				t.sendMeticList()
+			}
+		}
 		return err
 	}
 	return nil

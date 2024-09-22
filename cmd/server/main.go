@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"flag"
+	"fmt"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -12,8 +14,25 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 	dbstorage "github.com/evildead81/metrics-and-alerts/internal/server/storages/db-storage"
 	memstorage "github.com/evildead81/metrics-and-alerts/internal/server/storages/mem-storage"
+	"github.com/jackc/pgerrcode"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+func tryOpenDB(connStr string, attempt uint8) (*sql.DB, error) {
+	db, err := sql.Open("pgx", connStr)
+	if err != nil {
+		fmt.Println(err)
+		if errors.As(err, pgerrcode.ConnectionException) {
+			if attempt < 3 {
+				attempt := attempt + 1
+				time.Sleep(time.Duration(attempt*2-1) * time.Second)
+				tryOpenDB(connStr, attempt+1)
+			}
+		}
+		return nil, err
+	}
+	return db, nil
+}
 
 func main() {
 	var endpointParam = flag.String("a", "localhost:8080", "Server endpoint")
@@ -64,7 +83,7 @@ func main() {
 
 	var storage storages.Storage
 	if len(*connStr) != 0 {
-		db, err := sql.Open("pgx", *connStr)
+		db, err := tryOpenDB(*connStr, 0)
 		if err != nil {
 			logger.Logger.Fatalw("Error while connect to DB", "error", err.Error())
 		}
