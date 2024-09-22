@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/evildead81/metrics-and-alerts/internal/contracts"
+	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
 
@@ -42,7 +44,7 @@ func (s DBStorage) initDB() error {
 	return nil
 }
 
-func (s *DBStorage) UpdateCounter(name string, value int64) {
+func (s *DBStorage) UpdateCounter(name string, value int64) error {
 	var query string
 	currVal, err := s.GetCountValueByName(name)
 
@@ -55,17 +57,29 @@ func (s *DBStorage) UpdateCounter(name string, value int64) {
 	} else {
 		query = "INSERT INTO counters (id, value) VALUES ($1, $2);"
 	}
-	s.db.Exec(query, name, strconv.Itoa(int(currVal+value)))
+	_, err = s.db.Exec(query, name, strconv.Itoa(int(currVal+value)))
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (s *DBStorage) UpdateGauge(name string, value float64) {
+func (s *DBStorage) UpdateGauge(name string, value float64) error {
 	var query string
 	if s.isGaugeExists(name) {
 		query = "UPDATE gauges SET value = $2 WHERE id = $1;"
 	} else {
 		query = "INSERT INTO gauges (id, value) VALUES ($1, $2);"
 	}
-	s.db.Exec(query, name, strconv.FormatFloat(value, 'f', -1, 64))
+	_, err := s.db.Exec(query, name, strconv.FormatFloat(value, 'f', -1, 64))
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s DBStorage) isCounterExists(name string) bool {
@@ -155,5 +169,35 @@ func (s DBStorage) Ping() error {
 		return err
 	}
 
+	return nil
+}
+
+func (s DBStorage) UpdateMetrics(metrics *[]contracts.Metrics) error {
+	if metrics == nil || len(*metrics) == 0 {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	for _, v := range *metrics {
+		if v.MType == consts.Gauge {
+			err = s.UpdateGauge(v.ID, *v.Value)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+		if v.MType == consts.Counter {
+			err = s.UpdateCounter(v.ID, *v.Delta)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+
+	tx.Commit()
 	return nil
 }

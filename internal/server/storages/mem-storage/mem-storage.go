@@ -32,17 +32,21 @@ func New(storagePath string, restore bool) *MemStorage {
 	return storage
 }
 
-func (t *MemStorage) UpdateCounter(name string, value int64) {
+func (t *MemStorage) UpdateCounter(name string, value int64) error {
 	_, ok := t.counterMetrics[name]
 	if ok {
 		t.counterMetrics[name] += value
 	} else {
 		t.counterMetrics[name] = value
 	}
+
+	return nil
 }
 
-func (t *MemStorage) UpdateGauge(name string, value float64) {
+func (t *MemStorage) UpdateGauge(name string, value float64) error {
 	t.gaugeMetrics[name] = value
+
+	return nil
 }
 
 func (t MemStorage) GetCounters() map[string]int64 {
@@ -136,5 +140,27 @@ func (t MemStorage) Write() error {
 }
 
 func (t MemStorage) Ping() error {
+	return nil
+}
+
+func (t MemStorage) UpdateMetrics(metrics []contracts.Metrics) error {
+	if metrics == nil || len(metrics) == 0 {
+		return nil
+	}
+
+	for _, v := range metrics {
+		if v.MType == consts.Gauge {
+			err := t.UpdateGauge(v.ID, *v.Value)
+			if err != nil {
+				return err
+			}
+		}
+		if v.MType == consts.Counter {
+			err := t.UpdateCounter(v.ID, *v.Delta)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }

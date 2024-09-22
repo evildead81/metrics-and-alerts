@@ -218,3 +218,29 @@ func Ping(storage storages.Storage) http.HandlerFunc {
 		rw.WriteHeader(http.StatusOK)
 	}
 }
+
+func UpdateMetrics(storage storages.Storage) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		var buf bytes.Buffer
+		_, err := buf.ReadFrom(r.Body)
+
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var metrics []contracts.Metrics
+		if unmarshalErr := json.Unmarshal(buf.Bytes(), &metrics); unmarshalErr != nil {
+			http.Error(rw, unmarshalErr.Error(), http.StatusBadRequest)
+			return
+		}
+
+		err = storage.UpdateMetrics(metrics)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		rw.WriteHeader(http.StatusOK)
+	}
+}
