@@ -57,7 +57,7 @@ func (s *DBStorage) UpdateCounter(name string, value int64) error {
 	} else {
 		query = "INSERT INTO counters (id, value) VALUES ($1, $2);"
 	}
-	_, err = s.db.Exec(query, name, strconv.Itoa(int(currVal+value)))
+	_, err = s.db.Exec(query, name, currVal+value)
 
 	if err != nil {
 		return err
