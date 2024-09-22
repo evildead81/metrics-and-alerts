@@ -2,9 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"flag"
-	"fmt"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -21,8 +19,7 @@ import (
 func tryOpenDB(connStr string, attempt uint8) (*sql.DB, error) {
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
-		fmt.Println(err)
-		if errors.As(err, pgerrcode.ConnectionException) {
+		if pgerrcode.IsConnectionException(err.Error()) {
 			if attempt < 3 {
 				attempt := attempt + 1
 				time.Sleep(time.Duration(attempt*2-1) * time.Second)
