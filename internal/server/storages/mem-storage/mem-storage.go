@@ -144,7 +144,7 @@ func (t MemStorage) Ping() error {
 }
 
 func (t MemStorage) UpdateMetrics(metrics []contracts.Metrics) error {
-	if metrics == nil || len(metrics) == 0 {
+	if len(metrics) == 0 {
 		return nil
 	}
 

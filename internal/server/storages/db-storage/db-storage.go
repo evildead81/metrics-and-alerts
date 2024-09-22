@@ -173,7 +173,7 @@ func (s DBStorage) Ping() error {
 }
 
 func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
-	if metrics == nil || len(metrics) == 0 {
+	if len(metrics) == 0 {
 		return nil
 	}
 	tx, err := s.db.Begin()
