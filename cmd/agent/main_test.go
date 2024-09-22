@@ -9,12 +9,12 @@ import (
 
 	"github.com/evildead81/metrics-and-alerts/internal/agent"
 	"github.com/evildead81/metrics-and-alerts/internal/server/handlers"
-	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
+	memstorage "github.com/evildead81/metrics-and-alerts/internal/server/storages/mem-storage"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAgent(t *testing.T) {
-	storage := storages.New("./metrics.json", true)
+	storage := memstorage.New("./metrics.json", true)
 	h := http.HandlerFunc(handlers.UpdateMetricByParamsHandler(storage))
 	s := httptest.NewServer(h)
 	defer s.Close()

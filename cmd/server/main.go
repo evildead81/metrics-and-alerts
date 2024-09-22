@@ -3,13 +3,15 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"fmt"
 	"time"
 
 	"github.com/caarlos0/env"
 	"github.com/evildead81/metrics-and-alerts/internal/server"
 	"github.com/evildead81/metrics-and-alerts/internal/server/instance"
 	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
+	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
+	dbstorage "github.com/evildead81/metrics-and-alerts/internal/server/storages/db-storage"
+	memstorage "github.com/evildead81/metrics-and-alerts/internal/server/storages/mem-storage"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -60,18 +62,21 @@ func main() {
 		endpoint = endpointParam
 	}
 
-	db, err := sql.Open("pgx", *connStr)
-	if err != nil {
-		fmt.Println(err)
+	var storage storages.Storage
+	if len(*connStr) != 0 {
+		db, err := sql.Open("pgx", *connStr)
+		if err != nil {
+			logger.Logger.Fatalw("Error while connect to DB", "error", err.Error())
+		}
+		defer db.Close()
+		storage = dbstorage.New(db)
+	} else {
+		storage = memstorage.New(*fileStoragePath, *restore)
 	}
-	defer db.Close()
 
 	instance.New(
 		*endpoint,
+		&storage,
 		time.Duration(*storeInterval)*time.Second,
-		*fileStoragePath,
-		*restore,
-		db,
 	).Run()
-
 }

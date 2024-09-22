@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -216,7 +215,6 @@ func PingDB(db *sql.DB) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		if err := db.PingContext(ctx); err != nil {
-			fmt.Println(err)
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}

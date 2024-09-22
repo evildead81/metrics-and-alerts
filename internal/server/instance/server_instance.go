@@ -24,14 +24,13 @@ type ServerInstance struct {
 	db            *sql.DB
 }
 
-func New(endpoint string, storeInterval time.Duration, storagePath string, restore bool, db *sql.DB) *ServerInstance {
+func New(endpoint string, storage *storages.Storage, storeInterval time.Duration) *ServerInstance {
 	instance := ServerInstance{
 		endpoint:      endpoint,
-		storage:       storages.New(storagePath, restore),
+		storage:       *storage,
 		storeInterval: storeInterval,
 	}
 
-	instance.db = db
 	return &instance
 }
 

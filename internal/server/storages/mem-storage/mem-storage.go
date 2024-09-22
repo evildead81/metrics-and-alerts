@@ -1,4 +1,4 @@
-package storages
+package memstorage
 
 import (
 	"encoding/json"
@@ -8,13 +8,14 @@ import (
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
+	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
 
 type MemStorage struct {
 	gaugeMetrics   map[string]float64
 	counterMetrics map[string]int64
 	storagePath    string
-	Storage
+	storages.Storage
 }
 
 func (t *MemStorage) UpdateCounter(name string, value int64) {
