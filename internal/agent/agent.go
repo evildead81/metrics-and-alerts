@@ -43,7 +43,7 @@ func (t Agent) Run() error {
 	go func() error {
 		for {
 			time.Sleep(t.reportInterval)
-			t.sendMetrics()
+			t.sendMeticList()
 		}
 	}()
 
@@ -58,15 +58,14 @@ func (t Agent) Run() error {
 	}
 }
 
-func (t *Agent) sendMetrics() error {
-	url := t.host + "/update/"
+func (t *Agent) sendMetricsByOne() error {
 	for name, value := range t.gaugeMetrics {
 		metric := contracts.Metrics{
 			ID:    name,
 			Value: &value,
 			MType: consts.Gauge,
 		}
-		serializeAndPost(url, &metric)
+		t.serializeMetricAndPost(&metric)
 	}
 	for name, value := range t.counterMetrics {
 		metric := contracts.Metrics{
@@ -74,12 +73,37 @@ func (t *Agent) sendMetrics() error {
 			Delta: &value,
 			MType: consts.Counter,
 		}
-		serializeAndPost(url, &metric)
+		t.serializeMetricAndPost(&metric)
 	}
 	return nil
 }
 
-func serializeAndPost(url string, metric *contracts.Metrics) error {
+func (t *Agent) sendMeticList() error {
+	metrics := make([]contracts.Metrics, 0)
+	for name, value := range t.gaugeMetrics {
+		metrics = append(metrics, contracts.Metrics{
+			ID:    name,
+			Value: &value,
+			MType: consts.Gauge,
+		})
+	}
+	for name, value := range t.counterMetrics {
+		metrics = append(metrics, contracts.Metrics{
+			ID:    name,
+			Delta: &value,
+			MType: consts.Counter,
+		})
+	}
+
+	err := t.serializeMetricsAndPost(&metrics)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t *Agent) serializeMetricAndPost(metric *contracts.Metrics) error {
+	url := t.host + "/update/"
 	serialized, serErr := json.Marshal(metric)
 	if serErr != nil {
 		return serErr
@@ -105,6 +129,35 @@ func serializeAndPost(url string, metric *contracts.Metrics) error {
 	}
 	defer response.Body.Close()
 
+	return nil
+}
+
+func (t *Agent) serializeMetricsAndPost(metrics *[]contracts.Metrics) error {
+	url := t.host + "/updates/"
+	serialized, serErr := json.Marshal(metrics)
+	if serErr != nil {
+		return serErr
+	}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(serialized))
+	if err != nil {
+		return err
+	}
+
+	buf := bytes.NewBuffer(nil)
+	zb := gzip.NewWriter(buf)
+	_, zipErr := zb.Write(serialized)
+	if zipErr != nil {
+		return zipErr
+	}
+	defer zb.Close()
+
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Accept-Encoding", "gzip")
+	response, reqErr := http.DefaultClient.Do(req)
+	if reqErr != nil {
+		return reqErr
+	}
+	defer response.Body.Close()
 	return nil
 }
 

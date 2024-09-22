@@ -172,8 +172,8 @@ func (s DBStorage) Ping() error {
 	return nil
 }
 
-func (s DBStorage) UpdateMetrics(metrics *[]contracts.Metrics) error {
-	if metrics == nil || len(*metrics) == 0 {
+func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
+	if metrics == nil || len(metrics) == 0 {
 		return nil
 	}
 	tx, err := s.db.Begin()
@@ -181,7 +181,7 @@ func (s DBStorage) UpdateMetrics(metrics *[]contracts.Metrics) error {
 		return err
 	}
 
-	for _, v := range *metrics {
+	for _, v := range metrics {
 		if v.MType == consts.Gauge {
 			err = s.UpdateGauge(v.ID, *v.Value)
 			if err != nil {

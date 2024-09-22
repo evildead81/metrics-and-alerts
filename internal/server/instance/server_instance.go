@@ -40,6 +40,7 @@ func (t ServerInstance) Run() {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage))
 	})
+	r.Post("/updates/", handlers.UpdateMetrics(t.storage))
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/{metricType}/{metricName}", handlers.GetMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.GetMetricByJSONHandler(t.storage))
