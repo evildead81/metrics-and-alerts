@@ -2,7 +2,6 @@ package instance
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,7 +20,6 @@ type ServerInstance struct {
 	endpoint      string
 	storage       storages.Storage
 	storeInterval time.Duration
-	db            *sql.DB
 }
 
 func New(endpoint string, storage *storages.Storage, storeInterval time.Duration) *ServerInstance {
@@ -47,7 +45,7 @@ func (t ServerInstance) Run() {
 		r.Post("/", handlers.GetMetricByJSONHandler(t.storage))
 	})
 	r.Get("/", handlers.GetPageHandler(t.storage))
-	r.Get("/ping", handlers.PingDB(t.db))
+	r.Get("/ping", handlers.Ping(t.storage))
 	t.runSaver()
 
 	srv := &http.Server{

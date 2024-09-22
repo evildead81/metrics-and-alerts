@@ -1,8 +1,10 @@
 package dbstorage
 
 import (
+	"context"
 	"database/sql"
 	"strconv"
+	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
@@ -143,5 +145,15 @@ func (s DBStorage) Restore() error {
 }
 
 func (s DBStorage) Write() error {
+	return nil
+}
+
+func (s DBStorage) Ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := s.db.PingContext(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }

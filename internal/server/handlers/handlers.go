@@ -2,14 +2,11 @@ package handlers
 
 import (
 	"bytes"
-	"context"
-	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
@@ -210,14 +207,14 @@ func GetPageHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func PingDB(db *sql.DB) http.HandlerFunc {
+func Ping(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		if err := db.PingContext(ctx); err != nil {
+		err := storage.Ping()
+		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
 		rw.WriteHeader(http.StatusOK)
 	}
 }

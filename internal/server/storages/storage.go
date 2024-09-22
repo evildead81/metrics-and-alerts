@@ -9,4 +9,5 @@ type Storage interface {
 	GetCountValueByName(name string) (int64, error)
 	Restore() error
 	Write() error
+	Ping() error
 }

@@ -18,6 +18,20 @@ type MemStorage struct {
 	storages.Storage
 }
 
+func New(storagePath string, restore bool) *MemStorage {
+	storage := &MemStorage{
+		gaugeMetrics:   make(map[string]float64),
+		counterMetrics: map[string]int64{},
+		storagePath:    storagePath,
+	}
+
+	if restore {
+		storage.Restore()
+	}
+
+	return storage
+}
+
 func (t *MemStorage) UpdateCounter(name string, value int64) {
 	_, ok := t.counterMetrics[name]
 	if ok {
@@ -121,16 +135,6 @@ func (t MemStorage) Write() error {
 	return nil
 }
 
-func New(storagePath string, restore bool) *MemStorage {
-	storage := &MemStorage{
-		gaugeMetrics:   make(map[string]float64),
-		counterMetrics: map[string]int64{},
-		storagePath:    storagePath,
-	}
-
-	if restore {
-		storage.Restore()
-	}
-
-	return storage
+func (t MemStorage) Ping() error {
+	return nil
 }
