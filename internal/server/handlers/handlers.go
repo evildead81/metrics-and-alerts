@@ -62,15 +62,18 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.Handle
 		if len(key) != 0 {
 			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
 
-			hashedRequest, err := hash.Hash(buf.Bytes(), key)
-			if err != nil {
-				http.Error(rw, err.Error(), http.StatusBadRequest)
-				return
-			}
+			if len(hashReqHeaderVal) != 0 {
 
-			if hashReqHeaderVal != hashedRequest {
-				http.Error(rw, "Incorrect hash header", http.StatusBadRequest)
-				return
+				hashedRequest, err := hash.Hash(buf.Bytes(), key)
+				if err != nil {
+					http.Error(rw, err.Error(), http.StatusBadRequest)
+					return
+				}
+
+				if hashReqHeaderVal != hashedRequest {
+					http.Error(rw, "Incorrect hash header", http.StatusBadRequest)
+					return
+				}
 			}
 		}
 
@@ -261,15 +264,17 @@ func UpdateMetrics(storage storages.Storage, key string) http.HandlerFunc {
 		if len(key) != 0 {
 			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
 
-			hashedRequest, err := hash.Hash(buf.Bytes(), key)
-			if err != nil {
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
-				return
-			}
+			if len(hashReqHeaderVal) != 0 {
+				hashedRequest, err := hash.Hash(buf.Bytes(), key)
+				if err != nil {
+					http.Error(rw, err.Error(), http.StatusInternalServerError)
+					return
+				}
 
-			if hashReqHeaderVal != hashedRequest {
-				http.Error(rw, "Incorrect hash header", http.StatusBadRequest)
-				return
+				if hashReqHeaderVal != hashedRequest {
+					http.Error(rw, "Incorrect hash header", http.StatusBadRequest)
+					return
+				}
 			}
 		}
 
