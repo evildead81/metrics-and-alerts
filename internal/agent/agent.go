@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
+	hash "github.com/evildead81/metrics-and-alerts/internal/hash"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 )
 
@@ -27,9 +28,10 @@ type Agent struct {
 	mutex          *sync.Mutex
 	ctx            context.Context
 	sendAttempts   uint8
+	key            string
 }
 
-func New(host string, pollInterval time.Duration, reportInterval time.Duration, ctx context.Context) *Agent {
+func New(host string, pollInterval time.Duration, reportInterval time.Duration, ctx context.Context, key string) *Agent {
 	return &Agent{
 		gaugeMetrics:   make(map[string]float64),
 		counterMetrics: make(map[string]int64),
@@ -39,6 +41,7 @@ func New(host string, pollInterval time.Duration, reportInterval time.Duration, 
 		reportInterval: reportInterval,
 		mutex:          &sync.Mutex{},
 		ctx:            ctx,
+		key:            key,
 	}
 }
 
@@ -130,6 +133,14 @@ func (t *Agent) serializeMetricAndPost(metric *contracts.Metrics) error {
 		return zipErr
 	}
 	defer zb.Close()
+
+	if len(t.key) != 0 {
+		hashStr, err := hash.Hash(serialized, t.key)
+		if err != nil {
+			return err
+		}
+		req.Header.Set(hash.HASH_HEADER_KEY, hashStr)
+	}
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept-Encoding", "gzip")

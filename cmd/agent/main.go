@@ -14,6 +14,7 @@ func main() {
 	var endpointParam = flag.String("a", "localhost:8080", "Server endpoint")
 	var reportIntervalParam = flag.Int64("r", 10, "Report interval")
 	var pollIntervalParam = flag.Int64("p", 2, "Poll interval")
+	var keyParam = flag.String("k", "", "Auth key")
 	flag.Parse()
 	var cfg agent.AgentConfig
 	err := env.Parse(&cfg)
@@ -21,6 +22,7 @@ func main() {
 	var endpoint *string
 	var reportInterval *int64
 	var pollInterval *int64
+	var key *string
 	switch {
 	case err == nil:
 		{
@@ -39,6 +41,11 @@ func main() {
 			} else {
 				pollInterval = pollIntervalParam
 			}
+			if len(cfg.Key) != 0 {
+				key = &cfg.Key
+			} else {
+				key = keyParam
+			}
 		}
 	default:
 		log.Fatal("Agent env params parse error")
@@ -52,5 +59,6 @@ func main() {
 		time.Duration(*pollInterval)*time.Second,
 		time.Duration(*reportInterval)*time.Second,
 		context.Background(),
+		*key
 	).Run()
 }
