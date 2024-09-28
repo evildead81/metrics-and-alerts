@@ -14,7 +14,7 @@ func main() {
 	var endpointParam = flag.String("a", "localhost:8080", "Server endpoint")
 	var reportIntervalParam = flag.Int64("r", 10, "Report interval")
 	var pollIntervalParam = flag.Int64("p", 2, "Poll interval")
-	var keyParam = flag.String("k", "", "Auth key")
+	var keyParam = flag.String("k", "", "Secret key")
 	flag.Parse()
 	var cfg agent.AgentConfig
 	err := env.Parse(&cfg)
@@ -59,6 +59,6 @@ func main() {
 		time.Duration(*pollInterval)*time.Second,
 		time.Duration(*reportInterval)*time.Second,
 		context.Background(),
-		*key
+		*key,
 	).Run()
 }

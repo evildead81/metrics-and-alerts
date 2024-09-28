@@ -164,6 +164,14 @@ func (t *Agent) serializeMetricsAndPost(metrics *[]contracts.Metrics) error {
 		return err
 	}
 
+	if len(t.key) != 0 {
+		hashStr, err := hash.Hash(serialized, t.key)
+		if err != nil {
+			return err
+		}
+		req.Header.Set(hash.HASH_HEADER_KEY, hashStr)
+	}
+
 	buf := bytes.NewBuffer(nil)
 	zb := gzip.NewWriter(buf)
 	_, zipErr := zb.Write(serialized)
