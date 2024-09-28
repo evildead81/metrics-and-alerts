@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/evildead81/metrics-and-alerts/internal/server/handlers"
-	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
+	memstorage "github.com/evildead81/metrics-and-alerts/internal/server/storages/mem-storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -72,7 +72,7 @@ func TestStatusHandler(t *testing.T) {
 			request.SetPathValue("metricName", test.params.metricName)
 			request.SetPathValue("metricValue", test.params.metricValue)
 			w := httptest.NewRecorder()
-			storage := storages.New("./metrics.json", true)
+			storage := memstorage.New("./metrics.json", true)
 			h := http.HandlerFunc(handlers.UpdateMetricByParamsHandler(storage))
 			h(w, request)
 

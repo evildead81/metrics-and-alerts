@@ -1,4 +1,4 @@
-package storages
+package memstorage
 
 import (
 	"encoding/json"
@@ -8,26 +8,45 @@ import (
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
+	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
 
 type MemStorage struct {
 	gaugeMetrics   map[string]float64
 	counterMetrics map[string]int64
 	storagePath    string
-	Storage
+	storages.Storage
 }
 
-func (t *MemStorage) UpdateCounter(name string, value int64) {
+func New(storagePath string, restore bool) *MemStorage {
+	storage := &MemStorage{
+		gaugeMetrics:   make(map[string]float64),
+		counterMetrics: map[string]int64{},
+		storagePath:    storagePath,
+	}
+
+	if restore {
+		storage.Restore()
+	}
+
+	return storage
+}
+
+func (t *MemStorage) UpdateCounter(name string, value int64) error {
 	_, ok := t.counterMetrics[name]
 	if ok {
 		t.counterMetrics[name] += value
 	} else {
 		t.counterMetrics[name] = value
 	}
+
+	return nil
 }
 
-func (t *MemStorage) UpdateGauge(name string, value float64) {
+func (t *MemStorage) UpdateGauge(name string, value float64) error {
 	t.gaugeMetrics[name] = value
+
+	return nil
 }
 
 func (t MemStorage) GetCounters() map[string]int64 {
@@ -120,16 +139,28 @@ func (t MemStorage) Write() error {
 	return nil
 }
 
-func New(storagePath string, restore bool) *MemStorage {
-	storage := &MemStorage{
-		gaugeMetrics:   make(map[string]float64),
-		counterMetrics: map[string]int64{},
-		storagePath:    storagePath,
+func (t MemStorage) Ping() error {
+	return nil
+}
+
+func (t MemStorage) UpdateMetrics(metrics []contracts.Metrics) error {
+	if len(metrics) == 0 {
+		return nil
 	}
 
-	if restore {
-		storage.Restore()
+	for _, v := range metrics {
+		if v.MType == consts.Gauge {
+			err := t.UpdateGauge(v.ID, *v.Value)
+			if err != nil {
+				return err
+			}
+		}
+		if v.MType == consts.Counter {
+			err := t.UpdateCounter(v.ID, *v.Delta)
+			if err != nil {
+				return err
+			}
+		}
 	}
-
-	return storage
+	return nil
 }

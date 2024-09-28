@@ -13,6 +13,7 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 	"github.com/go-chi/chi/v5"
 	chiMid "github.com/go-chi/chi/v5/middleware"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type ServerInstance struct {
@@ -21,12 +22,13 @@ type ServerInstance struct {
 	storeInterval time.Duration
 }
 
-func New(endpoint string, storeInterval time.Duration, storagePath string, restore bool) *ServerInstance {
+func New(endpoint string, storage *storages.Storage, storeInterval time.Duration) *ServerInstance {
 	instance := ServerInstance{
 		endpoint:      endpoint,
-		storage:       storages.New(storagePath, restore),
+		storage:       *storage,
 		storeInterval: storeInterval,
 	}
+
 	return &instance
 }
 
@@ -38,11 +40,13 @@ func (t ServerInstance) Run() {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage))
 	})
+	r.Post("/updates/", handlers.UpdateMetrics(t.storage))
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/{metricType}/{metricName}", handlers.GetMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.GetMetricByJSONHandler(t.storage))
 	})
 	r.Get("/", handlers.GetPageHandler(t.storage))
+	r.Get("/ping", handlers.Ping(t.storage))
 	t.runSaver()
 
 	srv := &http.Server{
