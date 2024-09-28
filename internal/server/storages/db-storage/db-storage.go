@@ -176,6 +176,9 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 	if len(metrics) == 0 {
 		return nil
 	}
+
+	var reqCounters map[string]contracts.Metrics = make(map[string]contracts.Metrics)
+
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -190,11 +193,25 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 			}
 		}
 		if v.MType == consts.Counter {
-			err = s.UpdateCounter(v.ID, *v.Delta)
-			if err != nil {
-				tx.Rollback()
-				return err
+			// err = s.UpdateCounter(v.ID, *v.Delta)
+			// if err != nil {
+			// 	tx.Rollback()
+			// 	return err
+			// }
+			_, ok := reqCounters[v.ID]
+			if ok {
+				*reqCounters[v.ID].Delta += *v.Delta
+			} else {
+				reqCounters[v.ID] = v
 			}
+		}
+	}
+
+	for _, val := range reqCounters {
+		err = s.UpdateCounter(val.ID, *val.Delta)
+		if err != nil {
+			tx.Rollback()
+			return err
 		}
 	}
 
