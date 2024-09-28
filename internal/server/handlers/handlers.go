@@ -284,14 +284,6 @@ func UpdateMetrics(storage storages.Storage, key string) http.HandlerFunc {
 			return
 		}
 
-		hashedResponse, err := hash.Hash(make([]byte, 0), key)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		rw.Header().Set(hash.HashHeaderKey, hashedResponse)
-
 		rw.WriteHeader(http.StatusOK)
 	}
 }
