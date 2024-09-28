@@ -3,6 +3,7 @@ package dbstorage
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -147,6 +148,7 @@ func (s DBStorage) GetGaugeValueByName(name string) (float64, error) {
 func (s DBStorage) GetCountValueByName(name string) (int64, error) {
 	var value int64
 	err := s.db.QueryRow("SELECT value FROM counters WHERE id = $1", name).Scan(&value)
+	fmt.Println(value)
 	if err != nil {
 		return 0, err
 	}
@@ -177,7 +179,7 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 		return nil
 	}
 
-	var reqCounters map[string]contracts.Metrics = make(map[string]contracts.Metrics)
+	reqCounters := make(map[string]contracts.Metrics)
 
 	tx, err := s.db.Begin()
 	if err != nil {
