@@ -60,11 +60,11 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.Handle
 		}
 
 		if len(key) != 0 {
-			hashReqHeaderVal := r.Header.Get(hash.HASH_HEADER_KEY)
+			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
 
 			hashedRequest, err := hash.Hash(buf.Bytes(), key)
 			if err != nil {
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				http.Error(rw, err.Error(), http.StatusBadRequest)
 				return
 			}
 
@@ -104,7 +104,7 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.Handle
 		}
 		rw.Header().Add("Content-type", "application/json")
 		rw.Header().Add("Accept-Encoding", "gzip")
-		rw.Header().Add(hash.HASH_HEADER_KEY, hashedResponse)
+		rw.Header().Add(hash.HashHeaderKey, hashedResponse)
 		rw.WriteHeader(http.StatusOK)
 		rw.Write(bytes)
 	}
@@ -259,7 +259,7 @@ func UpdateMetrics(storage storages.Storage, key string) http.HandlerFunc {
 		}
 
 		if len(key) != 0 {
-			hashReqHeaderVal := r.Header.Get(hash.HASH_HEADER_KEY)
+			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
 
 			hashedRequest, err := hash.Hash(buf.Bytes(), key)
 			if err != nil {
@@ -285,7 +285,7 @@ func UpdateMetrics(storage storages.Storage, key string) http.HandlerFunc {
 			return
 		}
 
-		rw.Header().Set(hash.HASH_HEADER_KEY, hashedResponse)
+		rw.Header().Set(hash.HashHeaderKey, hashedResponse)
 
 		rw.WriteHeader(http.StatusOK)
 	}

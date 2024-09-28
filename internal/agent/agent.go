@@ -139,7 +139,7 @@ func (t *Agent) serializeMetricAndPost(metric *contracts.Metrics) error {
 		if err != nil {
 			return err
 		}
-		req.Header.Set(hash.HASH_HEADER_KEY, hashStr)
+		req.Header.Set(hash.HashHeaderKey, hashStr)
 	}
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
@@ -169,7 +169,7 @@ func (t *Agent) serializeMetricsAndPost(metrics *[]contracts.Metrics) error {
 		if err != nil {
 			return err
 		}
-		req.Header.Set(hash.HASH_HEADER_KEY, hashStr)
+		req.Header.Set(hash.HashHeaderKey, hashStr)
 	}
 
 	buf := bytes.NewBuffer(nil)

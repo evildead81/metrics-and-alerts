@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 )
 
-const HASH_HEADER_KEY = "HashSHA256"
+const HashHeaderKey = "HashSHA256"
 
 func Hash(data []byte, key string) (string, error) {
 	h := hmac.New(sha256.New, []byte(key))
