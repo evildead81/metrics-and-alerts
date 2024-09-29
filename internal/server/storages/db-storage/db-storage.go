@@ -189,7 +189,7 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 
 	for _, v := range metrics {
 		if v.MType == consts.Gauge {
-			_, ok := reqCounters[v.ID]
+			_, ok := reqGauges[v.ID]
 			if ok {
 				*reqGauges[v.ID].Value = *v.Value
 			} else {
