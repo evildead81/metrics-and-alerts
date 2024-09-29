@@ -180,6 +180,7 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 	}
 
 	reqCounters := make(map[string]contracts.Metrics)
+	reqGauges := make(map[string]contracts.Metrics)
 
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -188,10 +189,11 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 
 	for _, v := range metrics {
 		if v.MType == consts.Gauge {
-			err = s.UpdateGauge(v.ID, *v.Value)
-			if err != nil {
-				tx.Rollback()
-				return err
+			_, ok := reqCounters[v.ID]
+			if ok {
+				*reqGauges[v.ID].Value = *v.Value
+			} else {
+				reqGauges[v.ID] = v
 			}
 		}
 		if v.MType == consts.Counter {
@@ -204,6 +206,13 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 		}
 	}
 
+	for _, val := range reqGauges {
+		err = s.UpdateGauge(val.ID, *val.Value)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
 	for _, val := range reqCounters {
 		err = s.UpdateCounter(val.ID, *val.Delta)
 		if err != nil {
