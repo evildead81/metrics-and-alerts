@@ -3,6 +3,7 @@ package dbstorage
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -147,6 +148,7 @@ func (s DBStorage) GetGaugeValueByName(name string) (float64, error) {
 func (s DBStorage) GetCountValueByName(name string) (int64, error) {
 	var value int64
 	err := s.db.QueryRow("SELECT value FROM counters WHERE id = $1", name).Scan(&value)
+	fmt.Println(value)
 	if err != nil {
 		return 0, err
 	}
@@ -176,6 +178,10 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 	if len(metrics) == 0 {
 		return nil
 	}
+
+	reqCounters := make(map[string]contracts.Metrics)
+	reqGauges := make(map[string]contracts.Metrics)
+
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -183,18 +189,35 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 
 	for _, v := range metrics {
 		if v.MType == consts.Gauge {
-			err = s.UpdateGauge(v.ID, *v.Value)
-			if err != nil {
-				tx.Rollback()
-				return err
+			_, ok := reqGauges[v.ID]
+			if ok {
+				*reqGauges[v.ID].Value = *v.Value
+			} else {
+				reqGauges[v.ID] = v
 			}
 		}
 		if v.MType == consts.Counter {
-			err = s.UpdateCounter(v.ID, *v.Delta)
-			if err != nil {
-				tx.Rollback()
-				return err
+			_, ok := reqCounters[v.ID]
+			if ok {
+				*reqCounters[v.ID].Delta += *v.Delta
+			} else {
+				reqCounters[v.ID] = v
 			}
+		}
+	}
+
+	for _, val := range reqGauges {
+		err = s.UpdateGauge(val.ID, *val.Value)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	for _, val := range reqCounters {
+		err = s.UpdateCounter(val.ID, *val.Delta)
+		if err != nil {
+			tx.Rollback()
+			return err
 		}
 	}
 

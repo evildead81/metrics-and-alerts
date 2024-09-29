@@ -21,7 +21,7 @@ type MemStorage struct {
 func New(storagePath string, restore bool) *MemStorage {
 	storage := &MemStorage{
 		gaugeMetrics:   make(map[string]float64),
-		counterMetrics: map[string]int64{},
+		counterMetrics: make(map[string]int64),
 		storagePath:    storagePath,
 	}
 
