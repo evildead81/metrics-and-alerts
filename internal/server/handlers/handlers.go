@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
+	hash "github.com/evildead81/metrics-and-alerts/internal/hash"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
@@ -41,7 +42,7 @@ func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
+func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
 		_, err := buf.ReadFrom(r.Body)
@@ -56,6 +57,24 @@ func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 
 			http.Error(rw, unmarshalErr.Error(), http.StatusBadRequest)
 			return
+		}
+
+		if len(key) != 0 {
+			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
+
+			if len(hashReqHeaderVal) != 0 {
+
+				hashedRequest, err := hash.Hash(buf.Bytes(), key)
+				if err != nil {
+					http.Error(rw, err.Error(), http.StatusBadRequest)
+					return
+				}
+
+				if hashReqHeaderVal != hashedRequest {
+					http.Error(rw, "Incorrect hash header", http.StatusBadRequest)
+					return
+				}
+			}
 		}
 
 		newMetric := contracts.Metrics{
@@ -80,8 +99,15 @@ func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 			http.Error(rw, "Server error", http.StatusInternalServerError)
 			return
 		}
+
+		hashedResponse, err := hash.Hash(bytes, key)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		rw.Header().Add("Content-type", "application/json")
 		rw.Header().Add("Accept-Encoding", "gzip")
+		rw.Header().Add(hash.HashHeaderKey, hashedResponse)
 		rw.WriteHeader(http.StatusOK)
 		rw.Write(bytes)
 	}
@@ -115,7 +141,7 @@ func GetMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func GetMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
+func GetMetricByJSONHandler(storage storages.Storage, key string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var metric contracts.Metrics
 		var buf bytes.Buffer
@@ -219,7 +245,7 @@ func Ping(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func UpdateMetrics(storage storages.Storage) http.HandlerFunc {
+func UpdateMetrics(storage storages.Storage, key string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var buf bytes.Buffer
 		_, err := buf.ReadFrom(r.Body)
@@ -233,6 +259,23 @@ func UpdateMetrics(storage storages.Storage) http.HandlerFunc {
 		if unmarshalErr := json.Unmarshal(buf.Bytes(), &metrics); unmarshalErr != nil {
 			http.Error(rw, unmarshalErr.Error(), http.StatusBadRequest)
 			return
+		}
+
+		if len(key) != 0 {
+			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
+
+			if len(hashReqHeaderVal) != 0 {
+				hashedRequest, err := hash.Hash(buf.Bytes(), key)
+				if err != nil {
+					http.Error(rw, err.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				if hashReqHeaderVal != hashedRequest {
+					http.Error(rw, "Incorrect hash header", http.StatusBadRequest)
+					return
+				}
+			}
 		}
 
 		err = storage.UpdateMetrics(metrics)
