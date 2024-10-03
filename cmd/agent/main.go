@@ -15,6 +15,7 @@ func main() {
 	var reportIntervalParam = flag.Int64("r", 10, "Report interval")
 	var pollIntervalParam = flag.Int64("p", 2, "Poll interval")
 	var keyParam = flag.String("k", "", "Secret key")
+	var rateLimitParam = flag.Int("l", 0, "Parallels sends cound")
 	flag.Parse()
 	var cfg agent.AgentConfig
 	err := env.Parse(&cfg)
@@ -23,6 +24,7 @@ func main() {
 	var reportInterval *int64
 	var pollInterval *int64
 	var key *string
+	var rateLimit *int
 	switch {
 	case err == nil:
 		{
@@ -46,6 +48,11 @@ func main() {
 			} else {
 				key = keyParam
 			}
+			if cfg.RateLimit != 0 {
+				rateLimit = &cfg.RateLimit
+			} else {
+				rateLimit = rateLimitParam
+			}
 		}
 	default:
 		log.Fatal("Agent env params parse error")
@@ -60,5 +67,6 @@ func main() {
 		time.Duration(*reportInterval)*time.Second,
 		context.Background(),
 		*key,
+		*rateLimit,
 	).Run()
 }

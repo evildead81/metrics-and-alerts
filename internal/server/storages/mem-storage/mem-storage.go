@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
@@ -15,6 +16,7 @@ type MemStorage struct {
 	gaugeMetrics   map[string]float64
 	counterMetrics map[string]int64
 	storagePath    string
+	mutex          *sync.Mutex
 	storages.Storage
 }
 
@@ -23,6 +25,7 @@ func New(storagePath string, restore bool) *MemStorage {
 		gaugeMetrics:   make(map[string]float64),
 		counterMetrics: make(map[string]int64),
 		storagePath:    storagePath,
+		mutex:          &sync.Mutex{},
 	}
 
 	if restore {
@@ -34,18 +37,21 @@ func New(storagePath string, restore bool) *MemStorage {
 
 func (t *MemStorage) UpdateCounter(name string, value int64) error {
 	_, ok := t.counterMetrics[name]
+	t.mutex.Lock()
 	if ok {
 		t.counterMetrics[name] += value
 	} else {
 		t.counterMetrics[name] = value
 	}
+	t.mutex.Unlock()
 
 	return nil
 }
 
 func (t *MemStorage) UpdateGauge(name string, value float64) error {
+	t.mutex.Lock()
 	t.gaugeMetrics[name] = value
-
+	t.mutex.Unlock()
 	return nil
 }
 

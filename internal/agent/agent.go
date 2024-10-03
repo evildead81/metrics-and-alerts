@@ -16,6 +16,8 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	hash "github.com/evildead81/metrics-and-alerts/internal/hash"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 type Agent struct {
@@ -29,9 +31,17 @@ type Agent struct {
 	ctx            context.Context
 	sendAttempts   uint8
 	key            string
+	rateLimit      int
 }
 
-func New(host string, pollInterval time.Duration, reportInterval time.Duration, ctx context.Context, key string) *Agent {
+func New(
+	host string,
+	pollInterval time.Duration,
+	reportInterval time.Duration,
+	ctx context.Context,
+	key string,
+	rateLimit int,
+) *Agent {
 	return &Agent{
 		gaugeMetrics:   make(map[string]float64),
 		counterMetrics: make(map[string]int64),
@@ -42,44 +52,91 @@ func New(host string, pollInterval time.Duration, reportInterval time.Duration, 
 		mutex:          &sync.Mutex{},
 		ctx:            ctx,
 		key:            key,
+		rateLimit:      rateLimit,
 	}
 }
 
 func (t Agent) Run() error {
-	go func() error {
-		for {
-			time.Sleep(t.reportInterval)
-			t.sendMeticList()
-		}
-	}()
+	if t.rateLimit == 0 {
+		go func() error {
+			for {
+				time.Sleep(t.reportInterval)
+				t.sendMeticList()
+			}
+		}()
 
-	for {
-		select {
-		case <-t.ctx.Done():
-			return nil
-		default:
-			t.refreshMetrics()
-			time.Sleep(t.pollInterval)
+		for {
+			select {
+			case <-t.ctx.Done():
+				return nil
+			default:
+				t.refreshMetrics()
+				time.Sleep(t.pollInterval)
+			}
 		}
+	} else {
+		jobs := make(chan contracts.Metrics, 100)
+
+		var wg sync.WaitGroup
+
+		for i := 1; i <= t.rateLimit; i++ {
+			wg.Add(1)
+			go t.worker(jobs, &wg)
+		}
+
+		go t.readMetircs(jobs)
+		go t.readAdditionalMetrics(jobs)
+		time.Sleep(t.reportInterval)
+
+		close(jobs)
+		wg.Wait()
+
+		// for {
+		// 	select {
+		// 	case <-t.ctx.Done():
+		// 		return nil
+		// 	default:
+		// 		time.Sleep(t.reportInterval)
+		// 	}
+		// }
+
 	}
+
+	return nil
+}
+
+func (t *Agent) worker(jobs <-chan contracts.Metrics, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for j := range jobs {
+		t.serializeMetricAndPost(&j)
+	}
+}
+
+func (t *Agent) sendGauge(name string, value float64) {
+	metric := contracts.Metrics{
+		ID:    name,
+		Value: &value,
+		MType: consts.Gauge,
+	}
+	t.serializeMetricAndPost(&metric)
+}
+
+func (t *Agent) sendCounter(name string, delta int64) {
+	metric := contracts.Metrics{
+		ID:    name,
+		Delta: &delta,
+		MType: consts.Counter,
+	}
+	t.serializeMetricAndPost(&metric)
 }
 
 func (t *Agent) sendMetricsByOne() error {
 	for name, value := range t.gaugeMetrics {
-		metric := contracts.Metrics{
-			ID:    name,
-			Value: &value,
-			MType: consts.Gauge,
-		}
-		t.serializeMetricAndPost(&metric)
+		t.sendGauge(name, value)
 	}
 	for name, value := range t.counterMetrics {
-		metric := contracts.Metrics{
-			ID:    name,
-			Delta: &value,
-			MType: consts.Counter,
-		}
-		t.serializeMetricAndPost(&metric)
+		t.sendCounter(name, value)
 	}
 	return nil
 }
@@ -188,6 +245,119 @@ func (t *Agent) serializeMetricsAndPost(metrics *[]contracts.Metrics) error {
 	}
 	defer response.Body.Close()
 	return nil
+}
+
+func (t *Agent) readMetircs(runtimeMetricsChan chan contracts.Metrics) {
+	for {
+		var stats runtime.MemStats
+		runtime.ReadMemStats(&stats)
+		alloc := float64(stats.Alloc)
+		runtimeMetricsChan <- contracts.Metrics{ID: "Alloc", Value: &alloc, MType: consts.Gauge}
+
+		frees := float64(stats.Frees)
+		runtimeMetricsChan <- contracts.Metrics{ID: "Frees", Value: &frees, MType: consts.Gauge}
+
+		gccgpufraction := float64(stats.GCCPUFraction)
+		runtimeMetricsChan <- contracts.Metrics{ID: "GCCPUFraction", Value: &gccgpufraction, MType: consts.Gauge}
+
+		gcsys := float64(stats.GCSys)
+		runtimeMetricsChan <- contracts.Metrics{ID: "GCSys", Value: &gcsys, MType: consts.Gauge}
+
+		heapalloc := float64(stats.HeapAlloc)
+		runtimeMetricsChan <- contracts.Metrics{ID: "HeapAlloc", Value: &heapalloc, MType: consts.Gauge}
+
+		heapidle := float64(stats.HeapIdle)
+		runtimeMetricsChan <- contracts.Metrics{ID: "HeapIdle", Value: &heapidle, MType: consts.Gauge}
+
+		heapinuse := float64(stats.HeapInuse)
+		runtimeMetricsChan <- contracts.Metrics{ID: "HeapInuse", Value: &heapinuse, MType: consts.Gauge}
+
+		heapobjects := float64(stats.HeapObjects)
+		runtimeMetricsChan <- contracts.Metrics{ID: "HeapObjects", Value: &heapobjects, MType: consts.Gauge}
+
+		headreleased := float64(stats.HeapReleased)
+		runtimeMetricsChan <- contracts.Metrics{ID: "HeapReleased", Value: &headreleased, MType: consts.Gauge}
+
+		heapsys := float64(stats.HeapSys)
+		runtimeMetricsChan <- contracts.Metrics{ID: "HeapSys", Value: &heapsys, MType: consts.Gauge}
+
+		lastgc := float64(stats.LastGC)
+		runtimeMetricsChan <- contracts.Metrics{ID: "LastGC", Value: &lastgc, MType: consts.Gauge}
+
+		lookups := float64(stats.Lookups)
+		runtimeMetricsChan <- contracts.Metrics{ID: "Lookups", Value: &lookups, MType: consts.Gauge}
+
+		mcacheinuse := float64(stats.MCacheInuse)
+		runtimeMetricsChan <- contracts.Metrics{ID: "MCacheInuse", Value: &mcacheinuse, MType: consts.Gauge}
+
+		mcachesys := float64(stats.MCacheSys)
+		runtimeMetricsChan <- contracts.Metrics{ID: "MCacheSys", Value: &mcachesys, MType: consts.Gauge}
+
+		mspaninuse := float64(stats.MSpanInuse)
+		runtimeMetricsChan <- contracts.Metrics{ID: "MSpanInuse", Value: &mspaninuse, MType: consts.Gauge}
+
+		mspansys := float64(stats.MSpanSys)
+		runtimeMetricsChan <- contracts.Metrics{ID: "MSpanSys", Value: &mspansys, MType: consts.Gauge}
+
+		mallocs := float64(stats.Mallocs)
+		runtimeMetricsChan <- contracts.Metrics{ID: "Mallocs", Value: &mallocs, MType: consts.Gauge}
+
+		nextgc := float64(stats.NextGC)
+		runtimeMetricsChan <- contracts.Metrics{ID: "NextGC", Value: &nextgc, MType: consts.Gauge}
+
+		numforgedgc := float64(stats.NumForcedGC)
+		runtimeMetricsChan <- contracts.Metrics{ID: "NumForcedGC", Value: &numforgedgc, MType: consts.Gauge}
+
+		othersys := float64(stats.OtherSys)
+		runtimeMetricsChan <- contracts.Metrics{ID: "OtherSys", Value: &othersys, MType: consts.Gauge}
+
+		pausetotalns := float64(stats.PauseTotalNs)
+		runtimeMetricsChan <- contracts.Metrics{ID: "PauseTotalNs", Value: &pausetotalns, MType: consts.Gauge}
+
+		stackinuse := float64(stats.StackInuse)
+		runtimeMetricsChan <- contracts.Metrics{ID: "StackInuse", Value: &stackinuse, MType: consts.Gauge}
+
+		stacksys := float64(stats.StackSys)
+		runtimeMetricsChan <- contracts.Metrics{ID: "StackSys", Value: &stacksys, MType: consts.Gauge}
+
+		sys := float64(stats.Sys)
+		runtimeMetricsChan <- contracts.Metrics{ID: "Sys", Value: &sys, MType: consts.Gauge}
+
+		totalalloc := float64(stats.TotalAlloc)
+		runtimeMetricsChan <- contracts.Metrics{ID: "TotalAlloc", Value: &totalalloc, MType: consts.Gauge}
+
+		randomvalue := rand.Float64()
+		runtimeMetricsChan <- contracts.Metrics{ID: "RandomValue", Value: &randomvalue, MType: consts.Gauge}
+
+		t.counterMetrics["PollCount"] += 1
+		pollcount := t.counterMetrics["PollCount"]
+		runtimeMetricsChan <- contracts.Metrics{ID: "PollCount", Delta: &pollcount, MType: consts.Counter}
+
+		time.Sleep(t.pollInterval)
+	}
+
+}
+
+func (t *Agent) readAdditionalMetrics(additMetrics chan contracts.Metrics) error {
+	for {
+		v, _ := mem.VirtualMemory()
+		totalmemory := float64(v.Total)
+		additMetrics <- contracts.Metrics{ID: "TotalMemory", Value: &totalmemory, MType: consts.Gauge}
+
+		freemomry := float64(v.Free)
+		additMetrics <- contracts.Metrics{ID: "FreeMemory", Value: &freemomry, MType: consts.Gauge}
+
+		utilization, err := cpu.Percent(t.pollInterval, true)
+		if err != nil {
+			for i := 0; i < len(utilization); i++ {
+				cpuutil := utilization[i]
+				additMetrics <- contracts.Metrics{ID: "CPUutilization" + string(i), Value: &cpuutil, MType: consts.Gauge}
+			}
+		}
+
+		time.Sleep(t.pollInterval)
+	}
+
 }
 
 func (t *Agent) refreshMetrics() {
