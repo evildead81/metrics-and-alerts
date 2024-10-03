@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"runtime"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -351,7 +352,7 @@ func (t *Agent) readAdditionalMetrics(additMetrics chan contracts.Metrics) error
 		if err != nil {
 			for i := 0; i < len(utilization); i++ {
 				cpuutil := utilization[i]
-				additMetrics <- contracts.Metrics{ID: "CPUutilization" + string(i), Value: &cpuutil, MType: consts.Gauge}
+				additMetrics <- contracts.Metrics{ID: "CPUutilization" + strconv.FormatInt(int64(i), 10), Value: &cpuutil, MType: consts.Gauge}
 			}
 		}
 
