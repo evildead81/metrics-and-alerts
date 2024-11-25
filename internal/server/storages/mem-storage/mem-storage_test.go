@@ -1,7 +1,9 @@
 package memstorage
 
 import (
+	"math/rand"
 	"testing"
+	"time"
 )
 
 func TestUpdateCounter(t *testing.T) {
@@ -14,8 +16,24 @@ func TestUpdateCounter(t *testing.T) {
 
 func TestUpdateGauge(t *testing.T) {
 	storage := New("./metrics.json", true)
-	storage.UpdateGauge("someCounterMetric", 25.25)
-	if value := storage.GetGauges()["someCounterMetric"]; value != 25.25 {
-		t.Errorf("UpdateCounter %g, want %g", value, 25.25)
+	storage.UpdateGauge("someGaugeMetric", 25.25)
+	if value := storage.GetGauges()["someGaugeMetric"]; value != 25.25 {
+		t.Errorf("UpdateGauge %g, want %g", value, 25.25)
+	}
+}
+
+func BenchmarkUpdateGauge(b *testing.B) {
+	storage := New("./metrics.json", true)
+	for i := 0; i < b.N; i++ {
+		storage.UpdateGauge("someGaugeMetric", 500)
+	}
+}
+
+func BenchmarkUpdateGaugeSpeed(b *testing.B) {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	storage := New("./metrics.json", true)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		storage.UpdateGauge("someGaugeMetric", 500)
 	}
 }
