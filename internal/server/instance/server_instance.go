@@ -14,7 +14,6 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/server/middlewares"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	chiMid "github.com/go-chi/chi/v5/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -50,7 +49,7 @@ func (t ServerInstance) Run() {
 	})
 	r.Get("/", handlers.GetPageHandler(t.storage))
 	r.Get("/ping", handlers.Ping(t.storage))
-	r.Mount("/debug", middleware.Profiler())
+	r.Mount("/debug", chiMid.Profiler())
 	t.runSaver()
 
 	srv := &http.Server{
