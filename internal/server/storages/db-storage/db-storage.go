@@ -3,7 +3,7 @@ package dbstorage
 import (
 	"context"
 	"database/sql"
-	"strconv"
+	"errors"
 	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
@@ -45,19 +45,13 @@ func (s DBStorage) initDB() error {
 }
 
 func (s *DBStorage) UpdateCounter(name string, value int64) error {
-	var query string
-	currVal, err := s.GetCountValueByName(name)
-
-	if err != nil {
-		currVal = 0
-	}
-
-	if s.isCounterExists(name) {
-		query = "UPDATE counters SET value = $2 WHERE id = $1;"
-	} else {
-		query = "INSERT INTO counters (id, value) VALUES ($1, $2);"
-	}
-	_, err = s.db.Exec(query, name, currVal+value)
+	query := `
+	INSERT INTO counters (id, value) 
+	VALUES ($1, $2)
+	ON CONFLICT (id) DO UPDATE 
+	SET value = counters.value + $2;
+`
+	_, err := s.db.Exec(query, name, value)
 
 	if err != nil {
 		return err
@@ -67,19 +61,15 @@ func (s *DBStorage) UpdateCounter(name string, value int64) error {
 }
 
 func (s *DBStorage) UpdateGauge(name string, value float64) error {
-	var query string
-	if s.isGaugeExists(name) {
-		query = "UPDATE gauges SET value = $2 WHERE id = $1;"
-	} else {
-		query = "INSERT INTO gauges (id, value) VALUES ($1, $2);"
-	}
-	_, err := s.db.Exec(query, name, strconv.FormatFloat(value, 'f', -1, 64))
+	query := `
+		INSERT INTO gauges (id, value) 
+		VALUES ($1, $2)
+		ON CONFLICT (id) DO UPDATE 
+		SET value = EXCLUDED.value;
+	`
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	_, err := s.db.Exec(query, name, value)
+	return err
 }
 
 func (s DBStorage) isCounterExists(name string) bool {
@@ -137,21 +127,21 @@ func (s DBStorage) GetGauges() map[string]float64 {
 func (s DBStorage) GetGaugeValueByName(name string) (float64, error) {
 	var value float64
 	err := s.db.QueryRow("SELECT value FROM gauges WHERE id = $1", name).Scan(&value)
-	if err != nil {
-		return 0, err
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
 	}
 
-	return value, nil
+	return value, err
 }
 
 func (s DBStorage) GetCountValueByName(name string) (int64, error) {
 	var value int64
 	err := s.db.QueryRow("SELECT value FROM counters WHERE id = $1", name).Scan(&value)
-	if err != nil {
-		return 0, err
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
 	}
 
-	return value, nil
+	return value, err
 }
 
 func (s DBStorage) Restore() error {
