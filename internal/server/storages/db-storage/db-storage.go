@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
@@ -184,15 +185,18 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 		switch metric.MType {
 		case consts.Gauge:
 			if updateErr := s.updateGauge(tx, metric.ID, *metric.Value); updateErr != nil {
+				fmt.Println(err)
 				err = updateErr
 				return err
 			}
 		case consts.Counter:
 			if updateErr := s.updateCounter(tx, metric.ID, *metric.Delta); updateErr != nil {
+				fmt.Println(err)
 				err = updateErr
 				return err
 			}
 		default:
+			fmt.Println(err)
 			return err
 		}
 	}
