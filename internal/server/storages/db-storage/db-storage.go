@@ -166,28 +166,58 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 	if len(metrics) == 0 {
 		return nil
 	}
+
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 
-	for _, v := range metrics {
-		if v.MType == consts.Gauge {
-			err = s.UpdateGauge(v.ID, *v.Value)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
 		}
-		if v.MType == consts.Counter {
-			err = s.UpdateCounter(v.ID, *v.Delta)
-			if err != nil {
-				tx.Rollback()
+	}()
+
+	for _, metric := range metrics {
+		switch metric.MType {
+		case consts.Gauge:
+			if updateErr := s.updateGauge(tx, metric.ID, *metric.Value); updateErr != nil {
+				err = updateErr
 				return err
 			}
+		case consts.Counter:
+			if updateErr := s.updateCounter(tx, metric.ID, *metric.Delta); updateErr != nil {
+				err = updateErr
+				return err
+			}
+		default:
+			return err
 		}
 	}
 
-	tx.Commit()
 	return nil
+}
+
+func (s *DBStorage) updateGauge(tx *sql.Tx, name string, value float64) error {
+	query := `
+		INSERT INTO gauges (id, value)
+		VALUES ($1, $2)
+		ON CONFLICT (id) DO UPDATE
+		SET value = EXCLUDED.value;
+	`
+	_, err := tx.Exec(query, name, value)
+	return err
+}
+
+func (s *DBStorage) updateCounter(tx *sql.Tx, name string, value int64) error {
+	query := `
+		INSERT INTO counters (id, value)
+		VALUES ($1, $2)
+		ON CONFLICT (id) DO UPDATE
+		SET value = counters.value + $2;
+	`
+	_, err := tx.Exec(query, name, value)
+	return err
 }
