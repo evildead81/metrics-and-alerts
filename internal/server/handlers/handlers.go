@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -237,6 +238,7 @@ func UpdateMetrics(storage storages.Storage) http.HandlerFunc {
 
 		err = storage.UpdateMetrics(metrics)
 		if err != nil {
+			fmt.Println("ERR1", err)
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
