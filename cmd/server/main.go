@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env"
-	"github.com/evildead81/metrics-and-alerts/internal/server"
+	"github.com/evildead81/metrics-and-alerts/internal/server/config"
 	"github.com/evildead81/metrics-and-alerts/internal/server/instance"
 	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
@@ -37,8 +37,9 @@ func main() {
 	var fileStoragePathParam = flag.String("f", "./metrics.json", "File storage path")
 	var restoreParam = flag.Bool("r", true, "Restore from file flag")
 	var connStrParam = flag.String("d", "", "DB connection string")
+	var keyParam = flag.String("k", "", "Secret key")
 	flag.Parse()
-	var cfg server.ServerConfig
+	var cfg config.ServerConfig
 	err := env.Parse(&cfg)
 
 	var endpoint *string
@@ -46,6 +47,7 @@ func main() {
 	var fileStoragePath *string
 	var restore *bool
 	var connStr *string
+	var key *string
 	switch {
 	case err == nil:
 		if len(cfg.Address) != 0 {
@@ -73,6 +75,11 @@ func main() {
 		} else {
 			connStr = connStrParam
 		}
+		if len(cfg.Key) != 0 {
+			key = &cfg.Key
+		} else {
+			key = keyParam
+		}
 	default:
 		logger.Logger.Fatalw("Server env params parse error", "error", err.Error())
 		endpoint = endpointParam
@@ -94,5 +101,6 @@ func main() {
 		*endpoint,
 		&storage,
 		time.Duration(*storeInterval)*time.Second,
+		*key,
 	).Run()
 }
