@@ -46,31 +46,55 @@ func (s DBStorage) initDB() error {
 }
 
 func (s *DBStorage) UpdateCounter(name string, value int64) error {
-	query := `
-	INSERT INTO counters (id, value) 
-	VALUES ($1, $2)
-	ON CONFLICT (id) DO UPDATE 
-	SET value = counters.value + $2;
-`
-	_, err := s.db.Exec(query, name, value)
-
+	tx, err := s.db.Begin()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
 
+	query := `
+        INSERT INTO counters (id, value) 
+        VALUES ($1, $2)
+        ON CONFLICT (id) DO UPDATE 
+        SET value = counters.value + $2;
+    `
+	_, err = tx.Exec(query, name, value)
+	if err != nil {
+		return fmt.Errorf("failed to update counter: %w", err)
+	}
 	return nil
 }
 
 func (s *DBStorage) UpdateGauge(name string, value float64) error {
-	query := `
-		INSERT INTO gauges (id, value) 
-		VALUES ($1, $2)
-		ON CONFLICT (id) DO UPDATE 
-		SET value = EXCLUDED.value;
-	`
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
 
-	_, err := s.db.Exec(query, name, value)
-	return err
+	query := `
+        INSERT INTO gauges (id, value) 
+        VALUES ($1, $2)
+        ON CONFLICT (id) DO UPDATE 
+        SET value = EXCLUDED.value;
+    `
+	_, err = tx.Exec(query, name, value)
+	if err != nil {
+		return fmt.Errorf("failed to update gauge: %w", err)
+	}
+	return nil
 }
 
 func (s DBStorage) isCounterExists(name string) bool {
