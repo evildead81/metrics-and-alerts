@@ -131,8 +131,10 @@ func (s DBStorage) GetGaugeValueByName(name string) (float64, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
-
-	return value, err
+	if err != nil {
+		return 0, fmt.Errorf("failed to get gauge value: %w", err)
+	}
+	return value, nil
 }
 
 func (s DBStorage) GetCountValueByName(name string) (int64, error) {

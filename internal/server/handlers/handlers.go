@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -206,28 +207,32 @@ func Ping(storage storages.Storage) http.HandlerFunc {
 }
 
 func UpdateMetrics(storage storages.Storage) http.HandlerFunc {
-	return func(rw http.ResponseWriter, r *http.Request) {
-		var buf bytes.Buffer
-		_, err := buf.ReadFrom(r.Body)
+	return func(w http.ResponseWriter, r *http.Request) {
+		var reader io.ReadCloser
+		var err error
 
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			reader, err = gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, "failed to read gzip body", http.StatusBadRequest)
+				return
+			}
+			defer reader.Close()
+		} else {
+			reader = r.Body
 		}
 
 		var metrics []contracts.Metrics
-		if unmarshalErr := json.Unmarshal(buf.Bytes(), &metrics); unmarshalErr != nil {
-			http.Error(rw, unmarshalErr.Error(), http.StatusBadRequest)
+		if err := json.NewDecoder(reader).Decode(&metrics); err != nil {
+			http.Error(w, fmt.Sprintf("failed to decode JSON: %v", err), http.StatusBadRequest)
 			return
 		}
 
-		err = storage.UpdateMetrics(metrics)
-		if err != nil {
-			fmt.Println("ERR1", err)
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
+		if err := storage.UpdateMetrics(metrics); err != nil {
+			http.Error(w, fmt.Sprintf("failed to update metrics: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		rw.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusOK)
 	}
 }
