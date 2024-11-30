@@ -119,54 +119,39 @@ func GetMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 func GetMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var metric contracts.Metrics
-		var buf bytes.Buffer
-		_, err := buf.ReadFrom(r.Body)
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
 		defer r.Body.Close()
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if metric.MType != consts.Gauge && metric.MType != consts.Counter {
-			http.Error(rw, "Incorrect type", http.StatusNotFound)
-			return
-		}
-
-		result := contracts.Metrics{}
-		result.ID = metric.ID
-		result.MType = metric.MType
-		if metric.MType == consts.Gauge {
-			value, err := storage.GetGaugeValueByName(metric.ID)
-			if err != nil {
-				http.Error(rw, err.Error(), http.StatusNotFound)
-				return
-			}
-			result.Value = &value
-		}
 
 		if metric.MType == consts.Counter {
 			value, err := storage.GetCountValueByName(metric.ID)
 			if err != nil {
-				http.Error(rw, err.Error(), http.StatusNotFound)
+				http.Error(rw, "Metric not found", http.StatusNotFound)
 				return
 			}
-			result.Delta = &value
+			metric.Delta = &value
 		}
 
-		bytes, err := json.MarshalIndent(result, "", "   ")
+		if metric.MType == consts.Gauge {
+			value, err := storage.GetGaugeValueByName(metric.ID)
+			if err != nil {
+				http.Error(rw, "Metric not found", http.StatusNotFound)
+				return
+			}
+			metric.Value = &value
+		}
+
+		response, err := json.Marshal(metric)
 		if err != nil {
-			http.Error(rw, err.Error(), http.StatusNotFound)
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		rw.Header().Add("Content-Type", "application/json")
-		rw.Header().Add("Accept-Encoding", "gzip")
+
+		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusOK)
-		rw.Write(bytes)
+		rw.Write(response)
 	}
 }
 

@@ -46,25 +46,13 @@ func (s DBStorage) initDB() error {
 }
 
 func (s *DBStorage) UpdateCounter(name string, value int64) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
 	query := `
         INSERT INTO counters (id, value) 
         VALUES ($1, $2)
         ON CONFLICT (id) DO UPDATE 
-        SET value = counters.value + $2;
+        SET value = counters.value + EXCLUDED.value;
     `
-	_, err = tx.Exec(query, name, value)
+	_, err := s.db.Exec(query, name, value)
 	if err != nil {
 		return fmt.Errorf("failed to update counter: %w", err)
 	}
@@ -72,27 +60,15 @@ func (s *DBStorage) UpdateCounter(name string, value int64) error {
 }
 
 func (s *DBStorage) UpdateGauge(name string, value float64) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
 	query := `
-        INSERT INTO gauges (id, value) 
-        VALUES ($1, $2)
-        ON CONFLICT (id) DO UPDATE 
-        SET value = EXCLUDED.value;
+		INSERT INTO gauges (id, value) 
+		VALUES ($1, $2)
+		ON CONFLICT (id) DO UPDATE 
+		SET value = EXCLUDED.value;
     `
-	_, err = tx.Exec(query, name, value)
+	_, err := s.db.Exec(query, name, value)
 	if err != nil {
-		return fmt.Errorf("failed to update gauge: %w", err)
+		return fmt.Errorf("failed to update counter: %w", err)
 	}
 	return nil
 }
@@ -162,11 +138,13 @@ func (s DBStorage) GetGaugeValueByName(name string) (float64, error) {
 func (s DBStorage) GetCountValueByName(name string) (int64, error) {
 	var value int64
 	err := s.db.QueryRow("SELECT value FROM counters WHERE id = $1", name).Scan(&value)
-	if errors.Is(err, sql.ErrNoRows) {
+	if err == sql.ErrNoRows {
 		return 0, nil
 	}
-
-	return value, err
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
 }
 
 func (s DBStorage) Restore() error {
