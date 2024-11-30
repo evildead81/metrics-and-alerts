@@ -272,6 +272,8 @@ func UpdateMetrics(storage storages.Storage, key string) http.HandlerFunc {
 			reader = r.Body
 		}
 
+		defer reader.Close()
+
 		var metrics []contracts.Metrics
 		if err := json.NewDecoder(reader).Decode(&metrics); err != nil {
 			http.Error(w, fmt.Sprintf("failed to decode JSON: %v", err), http.StatusBadRequest)
