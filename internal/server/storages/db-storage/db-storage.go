@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
-	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
 
@@ -168,15 +167,52 @@ func (s DBStorage) Ping() error {
 }
 
 func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
+	// if len(metrics) == 0 {
+	// 	return nil
+	// }
+
+	// tx, err := s.db.Begin()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// defer func() {
+	// 	if err != nil {
+	// 		tx.Rollback()
+	// 	} else {
+	// 		tx.Commit()
+	// 	}
+	// }()
+
+	// for _, metric := range metrics {
+	// 	switch metric.MType {
+	// 	case consts.Gauge:
+	// 		if updateErr := s.updateGauge(tx, metric.ID, *metric.Value); updateErr != nil {
+	// 			fmt.Println(err)
+	// 			err = updateErr
+	// 			return err
+	// 		}
+	// 	case consts.Counter:
+	// 		if updateErr := s.updateCounter(tx, metric.ID, *metric.Delta); updateErr != nil {
+	// 			fmt.Println(err)
+	// 			err = updateErr
+	// 			return err
+	// 		}
+	// 	default:
+	// 		fmt.Println(err)
+	// 		return err
+	// 	}
+	// }
+
+	// return nil
 	if len(metrics) == 0 {
 		return nil
 	}
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-
 	defer func() {
 		if err != nil {
 			tx.Rollback()
@@ -187,24 +223,38 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 
 	for _, metric := range metrics {
 		switch metric.MType {
-		case consts.Gauge:
-			if updateErr := s.updateGauge(tx, metric.ID, *metric.Value); updateErr != nil {
-				fmt.Println(err)
-				err = updateErr
-				return err
+		case "counter":
+			if metric.Delta == nil {
+				return fmt.Errorf("missing delta value for counter: %s", metric.ID)
 			}
-		case consts.Counter:
-			if updateErr := s.updateCounter(tx, metric.ID, *metric.Delta); updateErr != nil {
-				fmt.Println(err)
-				err = updateErr
-				return err
+			query := `
+                INSERT INTO counters (id, value)
+                VALUES ($1, $2)
+                ON CONFLICT (id) DO UPDATE
+                SET value = counters.value + $2;
+            `
+			_, err = tx.Exec(query, metric.ID, *metric.Delta)
+			if err != nil {
+				return fmt.Errorf("failed to update counter: %w", err)
+			}
+		case "gauge":
+			if metric.Value == nil {
+				return fmt.Errorf("missing value for gauge: %s", metric.ID)
+			}
+			query := `
+                INSERT INTO gauges (id, value)
+                VALUES ($1, $2)
+                ON CONFLICT (id) DO UPDATE
+                SET value = EXCLUDED.value;
+            `
+			_, err = tx.Exec(query, metric.ID, *metric.Value)
+			if err != nil {
+				return fmt.Errorf("failed to update gauge: %w", err)
 			}
 		default:
-			fmt.Println(err)
-			return err
+			return fmt.Errorf("unsupported metric type: %s", metric.MType)
 		}
 	}
-
 	return nil
 }
 
