@@ -37,7 +37,7 @@ func New(endpoint string, storage *storages.Storage, storeInterval time.Duration
 func (t ServerInstance) Run() {
 	r := chi.NewRouter()
 	r.Use(middlewares.WithLogging)
-	r.Use(chiMid.Compress(5))
+	r.Use(middlewares.GzipMiddleware)
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage))
