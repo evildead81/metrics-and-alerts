@@ -71,10 +71,18 @@ func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 
 		switch {
 		case metric.MType == consts.Gauge:
-			storage.UpdateGauge(metric.ID, *metric.Value)
+			err := storage.UpdateGauge(metric.ID, *metric.Value)
+			if err != nil {
+				http.Error(rw, "Server error", http.StatusInternalServerError)
+				return
+			}
 			newMetric.Value = metric.Value
 		case metric.MType == consts.Counter:
-			storage.UpdateCounter(metric.ID, *metric.Delta)
+			err := storage.UpdateCounter(metric.ID, *metric.Delta)
+			if err != nil {
+				http.Error(rw, "Server error", http.StatusInternalServerError)
+				return
+			}
 			updatedCounterValue, err := storage.GetCountValueByName(metric.ID)
 			if err != nil {
 				http.Error(rw, "Server error", http.StatusInternalServerError)
