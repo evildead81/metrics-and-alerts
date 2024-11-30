@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
@@ -45,18 +44,23 @@ func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 
 func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		var buf bytes.Buffer
-		_, err := buf.ReadFrom(r.Body)
+		var reader io.ReadCloser
+		var err error
 
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			reader, err = gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(rw, "failed to read gzip body", http.StatusBadRequest)
+				return
+			}
+			defer reader.Close()
+		} else {
+			reader = r.Body
 		}
 
 		var metric contracts.Metrics
-		if unmarshalErr := json.Unmarshal(buf.Bytes(), &metric); unmarshalErr != nil {
-
-			http.Error(rw, unmarshalErr.Error(), http.StatusBadRequest)
+		if err := json.NewDecoder(reader).Decode(&metric); err != nil {
+			http.Error(rw, fmt.Sprintf("failed to decode JSON: %v", err), http.StatusBadRequest)
 			return
 		}
 
