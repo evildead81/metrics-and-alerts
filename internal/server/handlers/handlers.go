@@ -246,6 +246,7 @@ func UpdateMetrics(storage storages.Storage) http.HandlerFunc {
 		}
 
 		if err := storage.UpdateMetrics(metrics); err != nil {
+			fmt.Println("UPDATE METRICS ERROR", err)
 			http.Error(w, fmt.Sprintf("failed to update metrics: %v", err), http.StatusInternalServerError)
 			return
 		}
