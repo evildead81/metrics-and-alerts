@@ -32,7 +32,7 @@ func (s DBStorage) initDB() error {
 		");" +
 		"CREATE TABLE IF NOT EXISTS counters(" +
 		"id VARCHAR (50) PRIMARY KEY," +
-		"value INTEGER" +
+		"value BIGINT" +
 		");"
 
 	_, err := s.db.Exec(query)
