@@ -75,7 +75,12 @@ func UpdateMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 			newMetric.Value = metric.Value
 		case metric.MType == consts.Counter:
 			storage.UpdateCounter(metric.ID, *metric.Delta)
-			newMetric.Delta = metric.Delta
+			updatedCounterValue, err := storage.GetCountValueByName(metric.ID)
+			if err != nil {
+				http.Error(rw, "Server error", http.StatusInternalServerError)
+				return
+			}
+			newMetric.Delta = &updatedCounterValue
 		default:
 			http.Error(rw, "Incorrect type", http.StatusBadRequest)
 			return
