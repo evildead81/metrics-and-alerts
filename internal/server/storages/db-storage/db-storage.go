@@ -190,7 +190,7 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 			if metric.Delta == nil {
 				return fmt.Errorf("missing delta value for counter: %s", metric.ID)
 			}
-			err = s.storage.UpdateCounter(metric.ID, *metric.Delta)
+			err = s.UpdateCounter(metric.ID, *metric.Delta)
 			if err != nil {
 				return fmt.Errorf("failed to update counter: %w", err)
 			}
@@ -198,7 +198,7 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 			if metric.Value == nil {
 				return fmt.Errorf("missing value for gauge: %s", metric.ID)
 			}
-			err := s.storage.UpdateGauge(metric.ID, *metric.Value)
+			err := s.UpdateGauge(metric.ID, *metric.Value)
 			if err != nil {
 				return fmt.Errorf("failed to update gauge: %w", err)
 			}
