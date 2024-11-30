@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
@@ -66,6 +67,12 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.Handle
 		}
 
 		if len(key) != 0 {
+			var buf bytes.Buffer
+			_, err := buf.ReadFrom(r.Body)
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusBadRequest)
+				return
+			}
 			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
 
 			if len(hashReqHeaderVal) != 0 {
@@ -249,7 +256,7 @@ func Ping(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
-func UpdateMetrics(storage storages.Storage) http.HandlerFunc {
+func UpdateMetrics(storage storages.Storage, key string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var reader io.ReadCloser
 		var err error
