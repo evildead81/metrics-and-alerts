@@ -16,6 +16,7 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
 
+// UpdateMetricByParamsHandler - обновляет метрику, переданную в строке запроса.
 func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricTypeParam := r.PathValue("metricType")
@@ -44,6 +45,7 @@ func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
+// UpdateMetricByJSONHandler обновляет метрику, переданную в body в формате JSON.
 func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var reader io.ReadCloser
@@ -139,6 +141,7 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.Handle
 	}
 }
 
+// GetMetricByParamsHandler возвращает метрику по указанным в строке запроса типу и имени.
 func GetMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricTypeParam := r.PathValue("metricType")
@@ -167,6 +170,7 @@ func GetMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
+// GetMetricByJSONHandler возвращает метрику по параметрам, переданным в body в формате JSON.
 func GetMetricByJSONHandler(storage storages.Storage, key string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var metric contracts.Metrics
@@ -206,6 +210,7 @@ func GetMetricByJSONHandler(storage storages.Storage, key string) http.HandlerFu
 	}
 }
 
+// GetPageHandler возвращает html-страницу, где отображены текущие метрики.
 func GetPageHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		sb := strings.Builder{}
@@ -244,6 +249,7 @@ func GetPageHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
+// Ping проверяет доступность хранилища.
 func Ping(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		err := storage.Ping()
@@ -256,6 +262,7 @@ func Ping(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
+// UpdateMetrics обновляет список метрик, переданных в body в формате JSON.
 func UpdateMetrics(storage storages.Storage, key string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var reader io.ReadCloser

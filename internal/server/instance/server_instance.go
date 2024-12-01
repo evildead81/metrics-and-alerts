@@ -24,6 +24,7 @@ type ServerInstance struct {
 	key           string
 }
 
+// New создает инстанс сервера.
 func New(endpoint string, storage *storages.Storage, storeInterval time.Duration, key string) *ServerInstance {
 	instance := ServerInstance{
 		endpoint:      endpoint,
@@ -35,6 +36,7 @@ func New(endpoint string, storage *storages.Storage, storeInterval time.Duration
 	return &instance
 }
 
+// Run - запускает сервер.
 func (t ServerInstance) Run() {
 	r := chi.NewRouter()
 	r.Use(middlewares.WithLogging)
