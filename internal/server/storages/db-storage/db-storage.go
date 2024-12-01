@@ -3,7 +3,8 @@ package dbstorage
 import (
 	"context"
 	"database/sql"
-	"strconv"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
@@ -32,7 +33,7 @@ func (s DBStorage) initDB() error {
 		");" +
 		"CREATE TABLE IF NOT EXISTS counters(" +
 		"id VARCHAR (50) PRIMARY KEY," +
-		"value INTEGER" +
+		"value BIGINT" +
 		");"
 
 	_, err := s.db.Exec(query)
@@ -45,40 +46,30 @@ func (s DBStorage) initDB() error {
 }
 
 func (s *DBStorage) UpdateCounter(name string, value int64) error {
-	var query string
-	currVal, err := s.GetCountValueByName(name)
-
+	query := `
+        INSERT INTO counters (id, value) 
+        VALUES ($1, $2)
+        ON CONFLICT (id) DO UPDATE 
+        SET value = counters.value + EXCLUDED.value;
+    `
+	_, err := s.db.Exec(query, name, value)
 	if err != nil {
-		currVal = 0
+		return fmt.Errorf("failed to update counter: %w", err)
 	}
-
-	if s.isCounterExists(name) {
-		query = "UPDATE counters SET value = $2 WHERE id = $1;"
-	} else {
-		query = "INSERT INTO counters (id, value) VALUES ($1, $2);"
-	}
-	_, err = s.db.Exec(query, name, currVal+value)
-
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
 func (s *DBStorage) UpdateGauge(name string, value float64) error {
-	var query string
-	if s.isGaugeExists(name) {
-		query = "UPDATE gauges SET value = $2 WHERE id = $1;"
-	} else {
-		query = "INSERT INTO gauges (id, value) VALUES ($1, $2);"
-	}
-	_, err := s.db.Exec(query, name, strconv.FormatFloat(value, 'f', -1, 64))
-
+	query := `
+		INSERT INTO gauges (id, value) 
+		VALUES ($1, $2)
+		ON CONFLICT (id) DO UPDATE 
+		SET value = EXCLUDED.value;
+    `
+	_, err := s.db.Exec(query, name, value)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update counter: %w", err)
 	}
-
 	return nil
 }
 
@@ -137,20 +128,24 @@ func (s DBStorage) GetGauges() map[string]float64 {
 func (s DBStorage) GetGaugeValueByName(name string) (float64, error) {
 	var value float64
 	err := s.db.QueryRow("SELECT value FROM gauges WHERE id = $1", name).Scan(&value)
-	if err != nil {
-		return 0, err
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
 	}
-
+	if err != nil {
+		return 0, fmt.Errorf("failed to get gauge value: %w", err)
+	}
 	return value, nil
 }
 
 func (s DBStorage) GetCountValueByName(name string) (int64, error) {
 	var value int64
 	err := s.db.QueryRow("SELECT value FROM counters WHERE id = $1", name).Scan(&value)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
 	if err != nil {
 		return 0, err
 	}
-
 	return value, nil
 }
 
@@ -177,48 +172,39 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 		return nil
 	}
 
-	reqCounters := make(map[string]contracts.Metrics)
-	reqGauges := make(map[string]contracts.Metrics)
-
 	tx, err := s.db.Begin()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-
-	for _, v := range metrics {
-		if v.MType == consts.Gauge {
-			_, ok := reqGauges[v.ID]
-			if ok {
-				*reqGauges[v.ID].Value = *v.Value
-			} else {
-				reqGauges[v.ID] = v
-			}
-		}
-		if v.MType == consts.Counter {
-			_, ok := reqCounters[v.ID]
-			if ok {
-				*reqCounters[v.ID].Delta += *v.Delta
-			} else {
-				reqCounters[v.ID] = v
-			}
-		}
-	}
-
-	for _, val := range reqGauges {
-		err = s.UpdateGauge(val.ID, *val.Value)
+	defer func() {
 		if err != nil {
 			tx.Rollback()
-			return err
+		} else {
+			tx.Commit()
 		}
-	}
-	for _, val := range reqCounters {
-		err = s.UpdateCounter(val.ID, *val.Delta)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
+	}()
 
-	tx.Commit()
+	for _, metric := range metrics {
+		switch metric.MType {
+		case consts.Counter:
+			if metric.Delta == nil {
+				return fmt.Errorf("missing delta value for counter: %s", metric.ID)
+			}
+			err = s.UpdateCounter(metric.ID, *metric.Delta)
+			if err != nil {
+				return fmt.Errorf("failed to update counter: %w", err)
+			}
+		case consts.Gauge:
+			if metric.Value == nil {
+				return fmt.Errorf("missing value for gauge: %s", metric.ID)
+			}
+			err := s.UpdateGauge(metric.ID, *metric.Value)
+			if err != nil {
+				return fmt.Errorf("failed to update gauge: %w", err)
+			}
+		default:
+			return fmt.Errorf("unsupported metric type: %s", metric.MType)
+		}
+	}
 	return nil
 }

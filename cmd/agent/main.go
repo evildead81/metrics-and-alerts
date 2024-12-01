@@ -6,6 +6,8 @@ import (
 	"log"
 	"time"
 
+	_ "net/http/pprof"
+
 	"github.com/caarlos0/env/v6"
 	"github.com/evildead81/metrics-and-alerts/internal/agent"
 )
