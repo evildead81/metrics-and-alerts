@@ -35,6 +35,7 @@ type Agent struct {
 	rateLimit      int
 }
 
+// New создает инстанс агента.
 func New(
 	host string,
 	pollInterval time.Duration,
@@ -57,6 +58,7 @@ func New(
 	}
 }
 
+// Run запускает процесс отправки метрик на указаннй эндпоинт.
 func (t Agent) Run() error {
 	if t.rateLimit == 0 {
 		go func() error {
@@ -91,15 +93,6 @@ func (t Agent) Run() error {
 
 		close(jobs)
 		wg.Wait()
-
-		// for {
-		// 	select {
-		// 	case <-t.ctx.Done():
-		// 		return nil
-		// 	default:
-		// 		time.Sleep(t.reportInterval)
-		// 	}
-		// }
 
 	}
 

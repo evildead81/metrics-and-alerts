@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -14,6 +16,7 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
 
+// UpdateMetricByParamsHandler - обновляет метрику, переданную в строке запроса.
 func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricTypeParam := r.PathValue("metricType")
@@ -42,24 +45,36 @@ func UpdateMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
+// UpdateMetricByJSONHandler обновляет метрику, переданную в body в формате JSON.
 func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		var buf bytes.Buffer
-		_, err := buf.ReadFrom(r.Body)
+		var reader io.ReadCloser
+		var err error
 
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			reader, err = gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(rw, "failed to read gzip body", http.StatusBadRequest)
+				return
+			}
+			defer reader.Close()
+		} else {
+			reader = r.Body
 		}
 
 		var metric contracts.Metrics
-		if unmarshalErr := json.Unmarshal(buf.Bytes(), &metric); unmarshalErr != nil {
-
-			http.Error(rw, unmarshalErr.Error(), http.StatusBadRequest)
+		if err := json.NewDecoder(reader).Decode(&metric); err != nil {
+			http.Error(rw, fmt.Sprintf("failed to decode JSON: %v", err), http.StatusBadRequest)
 			return
 		}
 
 		if len(key) != 0 {
+			var buf bytes.Buffer
+			_, err := buf.ReadFrom(r.Body)
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusBadRequest)
+				return
+			}
 			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
 
 			if len(hashReqHeaderVal) != 0 {
@@ -84,11 +99,24 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.Handle
 
 		switch {
 		case metric.MType == consts.Gauge:
-			storage.UpdateGauge(metric.ID, *metric.Value)
+			err := storage.UpdateGauge(metric.ID, *metric.Value)
+			if err != nil {
+				http.Error(rw, "Server error", http.StatusInternalServerError)
+				return
+			}
 			newMetric.Value = metric.Value
 		case metric.MType == consts.Counter:
-			storage.UpdateCounter(metric.ID, *metric.Delta)
-			newMetric.Delta = metric.Delta
+			err := storage.UpdateCounter(metric.ID, *metric.Delta)
+			if err != nil {
+				http.Error(rw, "Server error", http.StatusInternalServerError)
+				return
+			}
+			updatedCounterValue, err := storage.GetCountValueByName(metric.ID)
+			if err != nil {
+				http.Error(rw, "Server error", http.StatusInternalServerError)
+				return
+			}
+			newMetric.Delta = &updatedCounterValue
 		default:
 			http.Error(rw, "Incorrect type", http.StatusBadRequest)
 			return
@@ -113,6 +141,7 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string) http.Handle
 	}
 }
 
+// GetMetricByParamsHandler возвращает метрику по указанным в строке запроса типу и имени.
 func GetMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricTypeParam := r.PathValue("metricType")
@@ -141,60 +170,47 @@ func GetMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
+// GetMetricByJSONHandler возвращает метрику по параметрам, переданным в body в формате JSON.
 func GetMetricByJSONHandler(storage storages.Storage, key string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var metric contracts.Metrics
-		var buf bytes.Buffer
-		_, err := buf.ReadFrom(r.Body)
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		}
 		defer r.Body.Close()
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if metric.MType != consts.Gauge && metric.MType != consts.Counter {
-			http.Error(rw, "Incorrect type", http.StatusNotFound)
-			return
-		}
-
-		result := contracts.Metrics{}
-		result.ID = metric.ID
-		result.MType = metric.MType
-		if metric.MType == consts.Gauge {
-			value, err := storage.GetGaugeValueByName(metric.ID)
-			if err != nil {
-				http.Error(rw, err.Error(), http.StatusNotFound)
-				return
-			}
-			result.Value = &value
-		}
 
 		if metric.MType == consts.Counter {
 			value, err := storage.GetCountValueByName(metric.ID)
 			if err != nil {
-				http.Error(rw, err.Error(), http.StatusNotFound)
+				http.Error(rw, "Metric not found", http.StatusNotFound)
 				return
 			}
-			result.Delta = &value
+			metric.Delta = &value
 		}
 
-		bytes, err := json.MarshalIndent(result, "", "   ")
+		if metric.MType == consts.Gauge {
+			value, err := storage.GetGaugeValueByName(metric.ID)
+			if err != nil {
+				http.Error(rw, "Metric not found", http.StatusNotFound)
+				return
+			}
+			metric.Value = &value
+		}
+
+		response, err := json.Marshal(metric)
 		if err != nil {
-			http.Error(rw, err.Error(), http.StatusNotFound)
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		rw.Header().Add("Content-Type", "application/json")
-		rw.Header().Add("Accept-Encoding", "gzip")
+
+		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusOK)
-		rw.Write(bytes)
+		rw.Write(response)
 	}
 }
 
+// GetPageHandler возвращает html-страницу, где отображены текущие метрики.
 func GetPageHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		sb := strings.Builder{}
@@ -233,6 +249,7 @@ func GetPageHandler(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
+// Ping проверяет доступность хранилища.
 func Ping(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		err := storage.Ping()
@@ -245,45 +262,37 @@ func Ping(storage storages.Storage) http.HandlerFunc {
 	}
 }
 
+// UpdateMetrics обновляет список метрик, переданных в body в формате JSON.
 func UpdateMetrics(storage storages.Storage, key string) http.HandlerFunc {
-	return func(rw http.ResponseWriter, r *http.Request) {
-		var buf bytes.Buffer
-		_, err := buf.ReadFrom(r.Body)
+	return func(w http.ResponseWriter, r *http.Request) {
+		var reader io.ReadCloser
+		var err error
 
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			reader, err = gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, "failed to read gzip body", http.StatusBadRequest)
+				return
+			}
+			defer reader.Close()
+		} else {
+			reader = r.Body
 		}
+
+		defer reader.Close()
 
 		var metrics []contracts.Metrics
-		if unmarshalErr := json.Unmarshal(buf.Bytes(), &metrics); unmarshalErr != nil {
-			http.Error(rw, unmarshalErr.Error(), http.StatusBadRequest)
+		if err := json.NewDecoder(reader).Decode(&metrics); err != nil {
+			http.Error(w, fmt.Sprintf("failed to decode JSON: %v", err), http.StatusBadRequest)
 			return
 		}
 
-		if len(key) != 0 {
-			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
-
-			if len(hashReqHeaderVal) != 0 {
-				hashedRequest, err := hash.Hash(buf.Bytes(), key)
-				if err != nil {
-					http.Error(rw, err.Error(), http.StatusInternalServerError)
-					return
-				}
-
-				if hashReqHeaderVal != hashedRequest {
-					http.Error(rw, "Incorrect hash header", http.StatusBadRequest)
-					return
-				}
-			}
-		}
-
-		err = storage.UpdateMetrics(metrics)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
+		if err := storage.UpdateMetrics(metrics); err != nil {
+			fmt.Println("UPDATE METRICS ERROR", err)
+			http.Error(w, fmt.Sprintf("failed to update metrics: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		rw.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusOK)
 	}
 }
