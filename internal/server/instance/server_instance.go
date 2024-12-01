@@ -9,8 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	_ "net/http/pprof"
-
 	"github.com/evildead81/metrics-and-alerts/internal/server/handlers"
 	"github.com/evildead81/metrics-and-alerts/internal/server/middlewares"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"

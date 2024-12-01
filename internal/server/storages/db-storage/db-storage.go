@@ -208,25 +208,3 @@ func (s DBStorage) UpdateMetrics(metrics []contracts.Metrics) error {
 	}
 	return nil
 }
-
-func (s *DBStorage) updateGauge(tx *sql.Tx, name string, value float64) error {
-	query := `
-		INSERT INTO gauges (id, value)
-		VALUES ($1, $2)
-		ON CONFLICT (id) DO UPDATE
-		SET value = EXCLUDED.value;
-	`
-	_, err := tx.Exec(query, name, value)
-	return err
-}
-
-func (s *DBStorage) updateCounter(tx *sql.Tx, name string, value int64) error {
-	query := `
-		INSERT INTO counters (id, value)
-		VALUES ($1, $2)
-		ON CONFLICT (id) DO UPDATE
-		SET value = counters.value + $2;
-	`
-	_, err := tx.Exec(query, name, value)
-	return err
-}
