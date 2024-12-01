@@ -3,6 +3,7 @@ package instance
 import (
 	"context"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -37,7 +38,7 @@ func New(endpoint string, storage *storages.Storage, storeInterval time.Duration
 func (t ServerInstance) Run() {
 	r := chi.NewRouter()
 	r.Use(middlewares.WithLogging)
-	r.Use(chiMid.Compress(5))
+	r.Use(middlewares.GzipMiddleware)
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage, t.key))
@@ -49,6 +50,25 @@ func (t ServerInstance) Run() {
 	})
 	r.Get("/", handlers.GetPageHandler(t.storage))
 	r.Get("/ping", handlers.Ping(t.storage))
+	r.Mount("/debug", chiMid.Profiler())
+
+	rtProf := chi.NewRouter()
+
+	rtProf.HandleFunc("/", pprof.Index)
+	rtProf.HandleFunc("/cmdline", pprof.Cmdline)
+	rtProf.HandleFunc("/profile", pprof.Profile)
+	rtProf.HandleFunc("/symbol", pprof.Symbol)
+	rtProf.HandleFunc("/trace", pprof.Trace)
+
+	rtProf.Handle("/goroutine", pprof.Handler("goroutine"))
+	rtProf.Handle("/heap", pprof.Handler("heap"))
+	rtProf.Handle("/threadcreate", pprof.Handler("threadcreate"))
+	rtProf.Handle("/block", pprof.Handler("block"))
+	rtProf.Handle("/mutex", pprof.Handler("mutex"))
+	rtProf.Handle("/allocs", pprof.Handler("allocs"))
+
+	r.Mount("/debug/pprof", rtProf)
+
 	t.runSaver()
 
 	srv := &http.Server{
