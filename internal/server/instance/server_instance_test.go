@@ -29,8 +29,7 @@ func (m *MockStorage) Read() error {
 
 func TestNewInstance(t *testing.T) {
 	storage := &MockStorage{
-		writeCalled: 0,
-		storage:     memstorage.New("./metrics.json", true),
+		storage: memstorage.New("./metrics.json", true),
 	}
 	instance := New(":8080", &storage.storage, 5*time.Second, "test-key")
 
