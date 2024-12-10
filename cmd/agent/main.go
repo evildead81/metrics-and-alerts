@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"time"
 
@@ -11,6 +12,28 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/evildead81/metrics-and-alerts/internal/agent"
 )
+
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
+func printBuildParams() {
+	if buildVersion == "" {
+		buildVersion = "N/A"
+	}
+	if buildDate == "" {
+		buildDate = "N/A"
+	}
+	if buildCommit == "" {
+		buildCommit = "N/A"
+	}
+
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
+}
 
 func main() {
 	var endpointParam = flag.String("a", "localhost:8080", "Server endpoint")
@@ -62,6 +85,8 @@ func main() {
 		reportInterval = reportIntervalParam
 		pollInterval = pollIntervalParam
 	}
+
+	printBuildParams()
 
 	agent.New(
 		*endpoint,
