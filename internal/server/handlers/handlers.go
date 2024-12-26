@@ -15,6 +15,7 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	hash "github.com/evildead81/metrics-and-alerts/internal/hash"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
+	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
 
@@ -58,6 +59,7 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 			_, err := buf.ReadFrom(r.Body)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusBadRequest)
+				logger.Logger.Error(err.Error())
 				return
 			}
 			hashReqHeaderVal := r.Header.Get(hash.HashHeaderKey)
@@ -67,11 +69,13 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 				hashedRequest, err := hash.Hash(buf.Bytes(), key)
 				if err != nil {
 					http.Error(rw, err.Error(), http.StatusBadRequest)
+					logger.Logger.Error(err.Error())
 					return
 				}
 
 				if hashReqHeaderVal != hashedRequest {
 					http.Error(rw, "Incorrect hash header", http.StatusBadRequest)
+					logger.Logger.Error(err.Error())
 					return
 				}
 			}
@@ -81,6 +85,7 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 			reader, err = gzip.NewReader(r.Body)
 			if err != nil {
 				http.Error(rw, "failed to read gzip body", http.StatusBadRequest)
+				logger.Logger.Error(err.Error())
 				return
 			}
 			defer reader.Close()
@@ -91,6 +96,7 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 		encryptedData, err := io.ReadAll(reader)
 		if err != nil {
 			http.Error(rw, "failed to read request body", http.StatusBadRequest)
+			logger.Logger.Error(err.Error())
 			return
 		}
 
@@ -100,11 +106,13 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 			_, err = buf.ReadFrom(r.Body)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusBadRequest)
+				logger.Logger.Error(err.Error())
 				return
 			}
 			decryptedData, err = rsa.DecryptPKCS1v15(reader, privateKey, encryptedData)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusBadRequest)
+				logger.Logger.Error(err.Error())
 				return
 			}
 		} else {
@@ -114,6 +122,7 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 		var metric contracts.Metrics
 		if err := json.NewDecoder(bytes.NewReader(decryptedData)).Decode(&metric); err != nil {
 			http.Error(rw, fmt.Sprintf("failed to decode JSON: %v", err), http.StatusBadRequest)
+			logger.Logger.Error(err.Error())
 			return
 		}
 
@@ -127,6 +136,7 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 			err := storage.UpdateGauge(metric.ID, *metric.Value)
 			if err != nil {
 				http.Error(rw, "Server error", http.StatusInternalServerError)
+				logger.Logger.Error(err.Error())
 				return
 			}
 			newMetric.Value = metric.Value
@@ -134,28 +144,33 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 			err := storage.UpdateCounter(metric.ID, *metric.Delta)
 			if err != nil {
 				http.Error(rw, "Server error", http.StatusInternalServerError)
+				logger.Logger.Error(err.Error())
 				return
 			}
 			updatedCounterValue, err := storage.GetCountValueByName(metric.ID)
 			if err != nil {
 				http.Error(rw, "Server error", http.StatusInternalServerError)
+				logger.Logger.Error(err.Error())
 				return
 			}
 			newMetric.Delta = &updatedCounterValue
 		default:
 			http.Error(rw, "Incorrect type", http.StatusBadRequest)
+			logger.Logger.Error("Incorrect type")
 			return
 		}
 
 		bytes, err := json.MarshalIndent(newMetric, "", "   ")
 		if err != nil {
 			http.Error(rw, "Server error", http.StatusInternalServerError)
+			logger.Logger.Error(err.Error())
 			return
 		}
 
 		hashedResponse, err := hash.Hash(bytes, key)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			logger.Logger.Error(err.Error())
 			return
 		}
 		rw.Header().Add("Content-type", "application/json")
