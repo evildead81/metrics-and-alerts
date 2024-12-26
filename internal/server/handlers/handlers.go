@@ -102,13 +102,6 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 
 		var decryptedData []byte
 		if privateKey != nil {
-			var buf bytes.Buffer
-			_, err = buf.ReadFrom(r.Body)
-			if err != nil {
-				http.Error(rw, err.Error(), http.StatusBadRequest)
-				logger.Logger.Error(err.Error())
-				return
-			}
 			decryptedData, err = rsa.DecryptPKCS1v15(reader, privateKey, encryptedData)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusBadRequest)
