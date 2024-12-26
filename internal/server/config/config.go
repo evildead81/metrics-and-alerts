@@ -14,4 +14,6 @@ type ServerConfig struct {
 	DatabaseDSN string `env:"DATABASE_DSN"`
 	// Key - ключ шифрования передаваемых данных.
 	Key string `env:"KEY"`
+	// CryptoKey - путь до файла с приватным ключом
+	CryptoKey string `env:"CRYPTO_KEY"`
 }

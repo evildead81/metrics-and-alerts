@@ -22,7 +22,7 @@ func TestAgent(t *testing.T) {
 	defer cancel()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	agent := agent.New("localhost:8080", 2*time.Second, 10*time.Second, ctx, "", 0)
+	agent := agent.New("localhost:8080", 2*time.Second, 10*time.Second, ctx, "", 0, "")
 	err := agent.Run()
 	require.NoError(t, err)
 }

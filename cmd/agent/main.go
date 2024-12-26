@@ -41,6 +41,7 @@ func main() {
 	var pollIntervalParam = flag.Int64("p", 2, "Poll interval")
 	var keyParam = flag.String("k", "", "Secret key")
 	var rateLimitParam = flag.Int("l", 0, "Parallels sends cound")
+	var cryptoKeyPathParam = flag.String("crypto-key", "", "Public key")
 	flag.Parse()
 	var cfg agent.AgentConfig
 	err := env.Parse(&cfg)
@@ -50,6 +51,7 @@ func main() {
 	var pollInterval *int64
 	var key *string
 	var rateLimit *int
+	var cryptoKeyPath *string
 	switch {
 	case err == nil:
 		{
@@ -78,6 +80,11 @@ func main() {
 			} else {
 				rateLimit = rateLimitParam
 			}
+			if cfg.CryptoKey != "" {
+				cryptoKeyPath = &cfg.CryptoKey
+			} else {
+				cryptoKeyPath = cryptoKeyPathParam
+			}
 		}
 	default:
 		log.Fatal("Agent env params parse error")
@@ -95,5 +102,6 @@ func main() {
 		context.Background(),
 		*key,
 		*rateLimit,
+		*cryptoKeyPath,
 	).Run()
 }

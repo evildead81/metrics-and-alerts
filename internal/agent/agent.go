@@ -4,10 +4,15 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	cryproRand "crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"math/rand"
 	"net/http"
+	"os"
 	"runtime"
 	"strconv"
 	"sync"
@@ -33,6 +38,7 @@ type Agent struct {
 	sendAttempts   uint8
 	key            string
 	rateLimit      int
+	publicKey      *rsa.PublicKey
 }
 
 // New создает инстанс агента.
@@ -43,8 +49,9 @@ func New(
 	ctx context.Context,
 	key string,
 	rateLimit int,
+	cryptoKeyPath string,
 ) *Agent {
-	return &Agent{
+	agent := &Agent{
 		gaugeMetrics:   make(map[string]float64),
 		counterMetrics: make(map[string]int64),
 		counter:        0,
@@ -56,6 +63,22 @@ func New(
 		key:            key,
 		rateLimit:      rateLimit,
 	}
+
+	if len(cryptoKeyPath) != 0 {
+		publicKeyPEM, err := os.ReadFile(cryptoKeyPath)
+		if err != nil {
+			panic(err)
+		}
+		publicKeyBlock, _ := pem.Decode(publicKeyPEM)
+		publicKey, _ := x509.ParsePKCS1PublicKey(publicKeyBlock.Bytes)
+		if err != nil {
+			panic(err)
+		}
+
+		agent.publicKey = publicKey
+	}
+
+	return agent
 }
 
 // Run запускает процесс отправки метрик на указаннй эндпоинт.
@@ -172,21 +195,32 @@ func (t *Agent) serializeMetricAndPost(metric *contracts.Metrics) error {
 	if serErr != nil {
 		return serErr
 	}
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(serialized))
+
+	var encryptedData []byte
+	if t.publicKey != nil {
+		encryptedData, serErr = rsa.EncryptPKCS1v15(cryproRand.Reader, t.publicKey, serialized)
+		if serErr != nil {
+			return serErr
+		}
+	} else {
+		encryptedData = serialized
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(encryptedData))
 	if err != nil {
 		return err
 	}
 
 	buf := bytes.NewBuffer(nil)
 	zb := gzip.NewWriter(buf)
-	_, zipErr := zb.Write(serialized)
+	_, zipErr := zb.Write(encryptedData)
 	if zipErr != nil {
 		return zipErr
 	}
 	defer zb.Close()
 
 	if len(t.key) != 0 {
-		hashStr, err := hash.Hash(serialized, t.key)
+		hashStr, err := hash.Hash(encryptedData, t.key)
 		if err != nil {
 			return err
 		}
@@ -206,30 +240,41 @@ func (t *Agent) serializeMetricAndPost(metric *contracts.Metrics) error {
 
 func (t *Agent) serializeMetricsAndPost(metrics *[]contracts.Metrics) error {
 	url := t.host + "/updates/"
-	serialized, serErr := json.Marshal(metrics)
-	if serErr != nil {
-		return serErr
-	}
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(serialized))
+	serialized, err := json.Marshal(metrics)
 	if err != nil {
 		return err
 	}
 
+	var encryptedData []byte
+	if t.publicKey != nil {
+		encryptedData, err = rsa.EncryptPKCS1v15(cryproRand.Reader, t.publicKey, serialized)
+		if err != nil {
+			return err
+		}
+	} else {
+		encryptedData = serialized
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(encryptedData))
+	if err != nil {
+		return err
+	}
+
+	buf := bytes.NewBuffer(nil)
+	zb := gzip.NewWriter(buf)
+	_, zipErr := zb.Write(encryptedData)
+	if zipErr != nil {
+		return zipErr
+	}
+	defer zb.Close()
+
 	if len(t.key) != 0 {
-		hashStr, err := hash.Hash(serialized, t.key)
+		hashStr, err := hash.Hash(encryptedData, t.key)
 		if err != nil {
 			return err
 		}
 		req.Header.Set(hash.HashHeaderKey, hashStr)
 	}
-
-	buf := bytes.NewBuffer(nil)
-	zb := gzip.NewWriter(buf)
-	_, zipErr := zb.Write(serialized)
-	if zipErr != nil {
-		return zipErr
-	}
-	defer zb.Close()
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept-Encoding", "gzip")
