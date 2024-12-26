@@ -196,7 +196,7 @@ func GetMetricByParamsHandler(storage storages.Storage) http.HandlerFunc {
 }
 
 // GetMetricByJSONHandler возвращает метрику по параметрам, переданным в body в формате JSON.
-func GetMetricByJSONHandler(storage storages.Storage, key string) http.HandlerFunc {
+func GetMetricByJSONHandler(storage storages.Storage) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var metric contracts.Metrics
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {

@@ -70,7 +70,7 @@ func New(
 			panic(err)
 		}
 		publicKeyBlock, _ := pem.Decode(publicKeyPEM)
-		publicKey, _ := x509.ParsePKCS1PublicKey(publicKeyBlock.Bytes)
+		publicKey, err := x509.ParsePKCS1PublicKey(publicKeyBlock.Bytes)
 		if err != nil {
 			panic(err)
 		}

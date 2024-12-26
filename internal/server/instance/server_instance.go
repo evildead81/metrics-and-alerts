@@ -73,7 +73,7 @@ func (t ServerInstance) Run() {
 	r.Post("/updates/", handlers.UpdateMetrics(t.storage, t.key, t.privateKey))
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/{metricType}/{metricName}", handlers.GetMetricByParamsHandler(t.storage))
-		r.Post("/", handlers.GetMetricByJSONHandler(t.storage, t.key))
+		r.Post("/", handlers.GetMetricByJSONHandler(t.storage))
 	})
 	r.Get("/", handlers.GetPageHandler(t.storage))
 	r.Get("/ping", handlers.Ping(t.storage))
