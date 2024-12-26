@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -307,7 +306,7 @@ func UpdateMetrics(storage storages.Storage, key string, privateKey *rsa.Private
 
 		defer reader.Close()
 
-		encryptedData, err := ioutil.ReadAll(reader)
+		encryptedData, err := io.ReadAll(reader)
 		if err != nil {
 			http.Error(w, "failed to read request body", http.StatusBadRequest)
 			return
