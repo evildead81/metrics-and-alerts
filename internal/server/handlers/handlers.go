@@ -75,23 +75,23 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 
 				if hashReqHeaderVal != hashedRequest {
 					http.Error(rw, "Incorrect hash header", http.StatusBadRequest)
-					logger.Logger.Error(err.Error())
+					logger.Logger.Error("Incorrect hash header")
 					return
 				}
 			}
 		}
 
-		if r.Header.Get("Content-Encoding") == "gzip" {
-			reader, err = gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(rw, "failed to read gzip body", http.StatusBadRequest)
-				logger.Logger.Error(err.Error())
-				return
-			}
-			defer reader.Close()
-		} else {
-			reader = r.Body
-		}
+		// if r.Header.Get("Content-Encoding") == "gzip" {
+		// 	reader, err = gzip.NewReader(r.Body)
+		// 	if err != nil {
+		// 		http.Error(rw, "failed to read gzip body", http.StatusBadRequest)
+		// 		logger.Logger.Error(err.Error())
+		// 		return
+		// 	}
+		// 	defer reader.Close()
+		// } else {
+		// 	reader = r.Body
+		// }
 
 		encryptedData, err := io.ReadAll(reader)
 		if err != nil {
