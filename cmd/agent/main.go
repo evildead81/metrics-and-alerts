@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	_ "net/http/pprof"
@@ -136,13 +138,35 @@ func main() {
 
 	printBuildParams()
 
-	agent.New(
-		*endpoint,
-		time.Duration(*pollInterval)*time.Second,
-		time.Duration(*reportInterval)*time.Second,
-		context.Background(),
-		*key,
-		*rateLimit,
-		*cryptoKeyPath,
-	).Run()
+	srvErrs := make(chan error, 1)
+	go func() {
+		srvErrs <- agent.New(
+			*endpoint,
+			time.Duration(*pollInterval)*time.Second,
+			time.Duration(*reportInterval)*time.Second,
+			context.Background(),
+			*key,
+			*rateLimit,
+			*cryptoKeyPath,
+		).Run()
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
+	shutdown := gracefulShutdown()
+
+	select {
+	case err := <-srvErrs:
+		shutdown(err)
+	case sig := <-quit:
+		shutdown(sig)
+	}
+}
+
+func gracefulShutdown() func(reason interface{}) {
+	return func(reason interface{}) {
+		_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+	}
 }
