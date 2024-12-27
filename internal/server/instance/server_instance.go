@@ -2,6 +2,9 @@ package instance
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -22,15 +25,37 @@ type ServerInstance struct {
 	storage       storages.Storage
 	storeInterval time.Duration
 	key           string
+	privateKey    *rsa.PrivateKey
 }
 
 // New создает инстанс сервера.
-func New(endpoint string, storage *storages.Storage, storeInterval time.Duration, key string) *ServerInstance {
+func New(
+	endpoint string,
+	storage *storages.Storage,
+	storeInterval time.Duration,
+	key string,
+	cryptoKeyPath string,
+) *ServerInstance {
 	instance := ServerInstance{
 		endpoint:      endpoint,
 		storage:       *storage,
 		storeInterval: storeInterval,
 		key:           key,
+	}
+
+	if len(cryptoKeyPath) != 0 {
+		privateKeyPEM, err := os.ReadFile(cryptoKeyPath)
+		if err != nil {
+			panic(err)
+		}
+
+		privateKeyBlock, _ := pem.Decode(privateKeyPEM)
+		privateKey, err := x509.ParsePKCS1PrivateKey(privateKeyBlock.Bytes)
+		if err != nil {
+			panic(err)
+		}
+
+		instance.privateKey = privateKey
 	}
 
 	return &instance
@@ -43,12 +68,12 @@ func (t ServerInstance) Run() {
 	r.Use(middlewares.GzipMiddleware)
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
-		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage, t.key))
+		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage, t.key, t.privateKey))
 	})
-	r.Post("/updates/", handlers.UpdateMetrics(t.storage, t.key))
+	r.Post("/updates/", handlers.UpdateMetrics(t.storage, t.key, t.privateKey))
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/{metricType}/{metricName}", handlers.GetMetricByParamsHandler(t.storage))
-		r.Post("/", handlers.GetMetricByJSONHandler(t.storage, t.key))
+		r.Post("/", handlers.GetMetricByJSONHandler(t.storage))
 	})
 	r.Get("/", handlers.GetPageHandler(t.storage))
 	r.Get("/ping", handlers.Ping(t.storage))
