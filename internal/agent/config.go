@@ -12,4 +12,6 @@ type AgentConfig struct {
 	Key string `env:"KEY"`
 	// RateLimit максимальное количество запросов, параллельно отправляемых на сервер.
 	RateLimit int `env:"RATE_LIMIT"`
+	// CryptoKey - путь до файла с публичным ключом
+	CryptoKey string `env:"CRYPTO_KEY"`
 }

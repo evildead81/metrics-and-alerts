@@ -61,6 +61,7 @@ func main() {
 	var restoreParam = flag.Bool("r", true, "Restore from file flag")
 	var connStrParam = flag.String("d", "", "DB connection string")
 	var keyParam = flag.String("k", "", "Secret key")
+	var cryptoKeyPathParam = flag.String("crypto-key", "", "Public key")
 	flag.Parse()
 	var cfg config.ServerConfig
 	err := env.Parse(&cfg)
@@ -71,6 +72,7 @@ func main() {
 	var restore *bool
 	var connStr *string
 	var key *string
+	var cryptoKeyPath *string
 	switch {
 	case err == nil:
 		if len(cfg.Address) != 0 {
@@ -103,6 +105,11 @@ func main() {
 		} else {
 			key = keyParam
 		}
+		if cfg.CryptoKey != "" {
+			cryptoKeyPath = &cfg.CryptoKey
+		} else {
+			cryptoKeyPath = cryptoKeyPathParam
+		}
 	default:
 		logger.Logger.Fatalw("Server env params parse error", "error", err.Error())
 		endpoint = endpointParam
@@ -127,5 +134,6 @@ func main() {
 		&storage,
 		time.Duration(*storeInterval)*time.Second,
 		*key,
+		*cryptoKeyPath,
 	).Run()
 }
