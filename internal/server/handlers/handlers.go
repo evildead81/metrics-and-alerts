@@ -54,9 +54,48 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 		var reader io.ReadCloser
 		var err error
 
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			reader, err = gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(rw, "failed to read gzip body", http.StatusBadRequest)
+				logger.Logger.Error(err.Error())
+				return
+			}
+			defer reader.Close()
+		} else {
+			reader = r.Body
+		}
+
+		encryptedData, err := io.ReadAll(reader)
+		if err != nil {
+			http.Error(rw, "failed to read request body", http.StatusBadRequest)
+			logger.Logger.Error(err.Error())
+			return
+		}
+
+		var decryptedData []byte
+		if privateKey != nil {
+			decryptedData, err = rsa.DecryptPKCS1v15(reader, privateKey, encryptedData)
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusBadRequest)
+				logger.Logger.Error(err.Error())
+				return
+			}
+		} else {
+			decryptedData = encryptedData
+		}
+
+		var metric contracts.Metrics
+		// if err := json.NewDecoder(bytes.NewReader(decryptedData)).Decode(&metric); err != nil {
+		if err := json.NewDecoder(bytes.NewReader(decryptedData)).Decode(&metric); err != nil {
+			http.Error(rw, fmt.Sprintf("failed to decode JSON: %v", err), http.StatusBadRequest)
+			logger.Logger.Error(err.Error())
+			return
+		}
+
 		if len(key) != 0 {
 			var buf bytes.Buffer
-			_, err := buf.ReadFrom(r.Body)
+			_, err := buf.ReadFrom(reader)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusBadRequest)
 				logger.Logger.Error(err.Error())
@@ -79,45 +118,6 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 					return
 				}
 			}
-		}
-
-		if r.Header.Get("Content-Encoding") == "gzip" {
-			reader, err = gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(rw, "failed to read gzip body", http.StatusBadRequest)
-				logger.Logger.Error(err.Error())
-				return
-			}
-			defer reader.Close()
-		} else {
-			reader = r.Body
-		}
-
-		// encryptedData, err := io.ReadAll(reader)
-		// if err != nil {
-		// 	http.Error(rw, "failed to read request body", http.StatusBadRequest)
-		// 	logger.Logger.Error(err.Error())
-		// 	return
-		// }
-
-		// var decryptedData []byte
-		// if privateKey != nil {
-		// 	decryptedData, err = rsa.DecryptPKCS1v15(reader, privateKey, encryptedData)
-		// 	if err != nil {
-		// 		http.Error(rw, err.Error(), http.StatusBadRequest)
-		// 		logger.Logger.Error(err.Error())
-		// 		return
-		// 	}
-		// } else {
-		// 	decryptedData = encryptedData
-		// }
-
-		var metric contracts.Metrics
-		// if err := json.NewDecoder(bytes.NewReader(decryptedData)).Decode(&metric); err != nil {
-		if err := json.NewDecoder(reader).Decode(&metric); err != nil {
-			http.Error(rw, fmt.Sprintf("failed to decode JSON: %v", err), http.StatusBadRequest)
-			logger.Logger.Error(err.Error())
-			return
 		}
 
 		newMetric := contracts.Metrics{
