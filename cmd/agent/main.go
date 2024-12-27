@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	_ "net/http/pprof"
@@ -42,6 +44,7 @@ func main() {
 	var keyParam = flag.String("k", "", "Secret key")
 	var rateLimitParam = flag.Int("l", 0, "Parallels sends cound")
 	var cryptoKeyPathParam = flag.String("crypto-key", "", "Public key")
+	var configPathParam = flag.String("c", "", "Config path")
 	flag.Parse()
 	var cfg agent.AgentConfig
 	err := env.Parse(&cfg)
@@ -52,6 +55,7 @@ func main() {
 	var key *string
 	var rateLimit *int
 	var cryptoKeyPath *string
+	var configPath *string
 	switch {
 	case err == nil:
 		{
@@ -85,12 +89,49 @@ func main() {
 			} else {
 				cryptoKeyPath = cryptoKeyPathParam
 			}
+			if cfg.ConfigPath != "" {
+				configPath = &cfg.ConfigPath
+			} else {
+				configPath = configPathParam
+			}
 		}
 	default:
 		log.Fatal("Agent env params parse error")
 		endpoint = endpointParam
 		reportInterval = reportIntervalParam
 		pollInterval = pollIntervalParam
+	}
+
+	if len(*configPath) != 0 {
+		content, err := os.ReadFile(*configPath)
+		if err != nil {
+			panic(err)
+		}
+
+		var fConfig agent.AgentConfig
+		err = json.Unmarshal(content, &fConfig)
+		if err != nil {
+			panic(err)
+		}
+
+		if len(*endpoint) == 0 {
+			endpoint = &fConfig.Address
+		}
+		if *reportInterval == 0 {
+			reportInterval = &fConfig.ReportInterval
+		}
+		if *pollInterval == 0 {
+			pollInterval = &fConfig.PollInterval
+		}
+		if len(*key) == 0 {
+			key = &fConfig.Key
+		}
+		if *rateLimit == 0 {
+			rateLimit = &fConfig.RateLimit
+		}
+		if len(*cryptoKeyPath) == 0 {
+			cryptoKeyPath = &fConfig.CryptoKey
+		}
 	}
 
 	printBuildParams()

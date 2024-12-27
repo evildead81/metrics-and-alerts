@@ -86,7 +86,6 @@ func UpdateMetricByJSONHandler(storage storages.Storage, key string, privateKey 
 		}
 
 		var metric contracts.Metrics
-		// if err := json.NewDecoder(bytes.NewReader(decryptedData)).Decode(&metric); err != nil {
 		if err := json.NewDecoder(bytes.NewReader(decryptedData)).Decode(&metric); err != nil {
 			http.Error(rw, fmt.Sprintf("failed to decode JSON: %v", err), http.StatusBadRequest)
 			logger.Logger.Error(err.Error())
