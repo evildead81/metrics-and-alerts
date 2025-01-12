@@ -2,8 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -61,6 +63,8 @@ func main() {
 	var restoreParam = flag.Bool("r", true, "Restore from file flag")
 	var connStrParam = flag.String("d", "", "DB connection string")
 	var keyParam = flag.String("k", "", "Secret key")
+	var cryptoKeyPathParam = flag.String("crypto-key", "", "Public key")
+	var configPathParam = flag.String("c", "", "Config path")
 	flag.Parse()
 	var cfg config.ServerConfig
 	err := env.Parse(&cfg)
@@ -71,6 +75,8 @@ func main() {
 	var restore *bool
 	var connStr *string
 	var key *string
+	var cryptoKeyPath *string
+	var configPath *string
 	switch {
 	case err == nil:
 		if len(cfg.Address) != 0 {
@@ -103,9 +109,55 @@ func main() {
 		} else {
 			key = keyParam
 		}
+		if cfg.CryptoKey != "" {
+			cryptoKeyPath = &cfg.CryptoKey
+		} else {
+			cryptoKeyPath = cryptoKeyPathParam
+		}
+		if cfg.ConfigPath != "" {
+			configPath = &cfg.ConfigPath
+		} else {
+			configPath = configPathParam
+		}
 	default:
 		logger.Logger.Fatalw("Server env params parse error", "error", err.Error())
 		endpoint = endpointParam
+	}
+
+	if len(*configPath) != 0 {
+		content, err := os.ReadFile(*configPath)
+		if err != nil {
+			panic(err)
+		}
+
+		var fConfig config.ServerConfig
+		err = json.Unmarshal(content, &fConfig)
+		if err != nil {
+			panic(err)
+		}
+
+		if len(*endpoint) == 0 {
+			endpoint = &fConfig.Address
+		}
+		if *storeInterval == 0 {
+			storeInterval = &fConfig.StoreInterval
+		}
+		if len(*fileStoragePath) == 0 {
+			fileStoragePath = &fConfig.FileStoragePath
+		}
+		if !*restore {
+			restore = &fConfig.Restore
+		}
+		if len(*cryptoKeyPath) == 0 {
+			cryptoKeyPath = &fConfig.CryptoKey
+		}
+		if len(*connStr) == 0 {
+			connStr = &fConfig.DatabaseDSN
+		}
+		if len(*key) == 0 {
+			key = &fConfig.Key
+		}
+
 	}
 
 	var storage storages.Storage
@@ -127,5 +179,6 @@ func main() {
 		&storage,
 		time.Duration(*storeInterval)*time.Second,
 		*key,
+		*cryptoKeyPath,
 	).Run()
 }
