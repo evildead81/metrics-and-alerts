@@ -69,7 +69,7 @@ func (t ServerInstance) Run() {
 	r.Use(middlewares.WithLogging)
 	r.Use(middlewares.GzipMiddleware)
 	if t.trustedSubnet != "" {
-		r.Use(middlewares.CheckClientIpMiddleware(t.trustedSubnet))
+		r.Use(middlewares.CheckClientIPMiddleware(t.trustedSubnet))
 	}
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
