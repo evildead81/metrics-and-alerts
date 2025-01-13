@@ -41,7 +41,7 @@ type Agent struct {
 	key            string
 	rateLimit      int
 	publicKey      *rsa.PublicKey
-	localIpAddress string
+	localIPAddress string
 }
 
 // New создает инстанс агента.
@@ -65,7 +65,7 @@ func New(
 		ctx:            ctx,
 		key:            key,
 		rateLimit:      rateLimit,
-		localIpAddress: getLocalIP(),
+		localIPAddress: getLocalIP(),
 	}
 
 	if len(cryptoKeyPath) != 0 {
@@ -233,7 +233,7 @@ func (t *Agent) serializeMetricAndPost(metric *contracts.Metrics) error {
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept-Encoding", "gzip")
-	req.Header.Set("X-Real-IP", t.localIpAddress)
+	req.Header.Set("X-Real-IP", t.localIPAddress)
 	response, reqErr := http.DefaultClient.Do(req)
 	if reqErr != nil {
 		return reqErr
@@ -283,7 +283,7 @@ func (t *Agent) serializeMetricsAndPost(metrics *[]contracts.Metrics) error {
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept-Encoding", "gzip")
-	req.Header.Set("X-Real-IP", t.localIpAddress)
+	req.Header.Set("X-Real-IP", t.localIPAddress)
 	response, reqErr := http.DefaultClient.Do(req)
 	if reqErr != nil {
 		return reqErr
