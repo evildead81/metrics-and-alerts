@@ -31,7 +31,7 @@ func TestNewInstance(t *testing.T) {
 	storage := &MockStorage{
 		storage: memstorage.New("./metrics.json", true),
 	}
-	instance := New(":8080", &storage.storage, 5*time.Second, "test-key", "")
+	instance := New(":8080", &storage.storage, 5*time.Second, "test-key", "", "")
 
 	if instance.endpoint != ":8080" {
 		t.Errorf("Expected endpoint ':8080', got '%s'", instance.endpoint)

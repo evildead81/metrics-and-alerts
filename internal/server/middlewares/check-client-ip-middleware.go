@@ -7,8 +7,8 @@ import (
 	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
 )
 
-func CheckClientIpMiddleware(subnet string) func(http.Handler) http.HandlerFunc {
-	return func(next http.Handler) http.HandlerFunc {
+func CheckClientIpMiddleware(subnet string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := r.Header.Get("X-Real-IP")
 			if ok, err := helpers.CheckIPInSubnet(subnet, ip); !ok {
