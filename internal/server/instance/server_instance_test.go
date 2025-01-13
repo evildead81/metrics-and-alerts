@@ -69,7 +69,7 @@ func TestRoutes(t *testing.T) {
 
 func TestRunServer(t *testing.T) {
 	storage := &MockStorage{}
-	instance := New(":8080", &storage.storage, 5*time.Second, "test-key", "")
+	instance := New(":8080", &storage.storage, 5*time.Second, "test-key", "", "")
 
 	go func() {
 		defer func() {
