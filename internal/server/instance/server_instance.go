@@ -26,6 +26,7 @@ type ServerInstance struct {
 	storeInterval time.Duration
 	key           string
 	privateKey    *rsa.PrivateKey
+	trustedSubnet string
 }
 
 // New создает инстанс сервера.
@@ -35,6 +36,7 @@ func New(
 	storeInterval time.Duration,
 	key string,
 	cryptoKeyPath string,
+	trustedSubnet string,
 ) *ServerInstance {
 	instance := ServerInstance{
 		endpoint:      endpoint,
