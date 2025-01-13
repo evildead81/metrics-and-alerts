@@ -15,6 +15,9 @@ type ServerConfig struct {
 	// Key - ключ шифрования передаваемых данных.
 	Key string `env:"KEY" json:"key"`
 	// CryptoKey - путь до файла с приватным ключом
-	CryptoKey  string `env:"CRYPTO_KEY" json:"crypto_key"`
+	CryptoKey string `env:"CRYPTO_KEY" json:"crypto_key"`
+	// TrustedSubnet - доверенная подсеть клиента
+	TrustedSubnet string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
+	// ConfigPath - путь к файлу конфигурации в формате json
 	ConfigPath string `env:"CONFIG"`
 }

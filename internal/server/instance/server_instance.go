@@ -26,6 +26,7 @@ type ServerInstance struct {
 	storeInterval time.Duration
 	key           string
 	privateKey    *rsa.PrivateKey
+	trustedSubnet string
 }
 
 // New создает инстанс сервера.
@@ -35,6 +36,7 @@ func New(
 	storeInterval time.Duration,
 	key string,
 	cryptoKeyPath string,
+	trustedSubnet string,
 ) *ServerInstance {
 	instance := ServerInstance{
 		endpoint:      endpoint,
@@ -66,6 +68,9 @@ func (t ServerInstance) Run() {
 	r := chi.NewRouter()
 	r.Use(middlewares.WithLogging)
 	r.Use(middlewares.GzipMiddleware)
+	if t.trustedSubnet != "" {
+		r.Use(middlewares.CheckClientIPMiddleware(t.trustedSubnet))
+	}
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage, t.key, t.privateKey))

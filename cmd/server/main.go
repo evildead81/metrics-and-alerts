@@ -64,6 +64,7 @@ func main() {
 	var connStrParam = flag.String("d", "", "DB connection string")
 	var keyParam = flag.String("k", "", "Secret key")
 	var cryptoKeyPathParam = flag.String("crypto-key", "", "Public key")
+	var trustedSubnetParam = flag.String("t", "", "Trusted subnet")
 	var configPathParam = flag.String("c", "", "Config path")
 	flag.Parse()
 	var cfg config.ServerConfig
@@ -76,6 +77,7 @@ func main() {
 	var connStr *string
 	var key *string
 	var cryptoKeyPath *string
+	var trustedSubnet *string
 	var configPath *string
 	switch {
 	case err == nil:
@@ -114,6 +116,12 @@ func main() {
 		} else {
 			cryptoKeyPath = cryptoKeyPathParam
 		}
+		if cfg.TrustedSubnet != "" {
+			trustedSubnet = &cfg.TrustedSubnet
+		} else {
+			trustedSubnet = trustedSubnetParam
+		}
+
 		if cfg.ConfigPath != "" {
 			configPath = &cfg.ConfigPath
 		} else {
@@ -154,6 +162,9 @@ func main() {
 		if len(*connStr) == 0 {
 			connStr = &fConfig.DatabaseDSN
 		}
+		if len(*trustedSubnet) == 0 {
+			trustedSubnet = &fConfig.TrustedSubnet
+		}
 		if len(*key) == 0 {
 			key = &fConfig.Key
 		}
@@ -180,5 +191,6 @@ func main() {
 		time.Duration(*storeInterval)*time.Second,
 		*key,
 		*cryptoKeyPath,
+		*trustedSubnet,
 	).Run()
 }
