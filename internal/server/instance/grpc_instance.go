@@ -64,7 +64,7 @@ func (s *server) UpdateMetric(ctx context.Context, req *pb.UpdateMetricRequest) 
 		}
 		newMetric.Delta = &updatedCounterValue
 	default:
-		return nil, fmt.Errorf("Incorrect type")
+		return nil, fmt.Errorf("incorrect type")
 	}
 
 	return &pb.UpdateMetricResponse{Metric: &pb.Metrics{

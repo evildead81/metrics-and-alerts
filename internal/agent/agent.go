@@ -373,14 +373,14 @@ func (t *Agent) serializeMetricsAndPost(metrics *[]contracts.Metrics) error {
 
 func (t *Agent) postMetricsByRPC() error {
 	pbMetrics := make([]*pb.Metrics, 0)
-	for name, value := range *&t.gaugeMetrics {
+	for name, value := range t.gaugeMetrics {
 		pbMetrics = append(pbMetrics, &pb.Metrics{
 			Id:    name,
 			Type:  consts.Gauge,
 			Value: value,
 		})
 	}
-	for name, value := range *&t.counterMetrics {
+	for name, value := range t.counterMetrics {
 		pbMetrics = append(pbMetrics, &pb.Metrics{
 			Id:    name,
 			Type:  consts.Counter,
