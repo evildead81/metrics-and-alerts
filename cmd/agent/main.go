@@ -47,6 +47,7 @@ func main() {
 	var rateLimitParam = flag.Int("l", 0, "Parallels sends cound")
 	var cryptoKeyPathParam = flag.String("crypto-key", "", "Public key")
 	var configPathParam = flag.String("c", "", "Config path")
+	var useRPCParam = flag.Bool("use-rpc", false, "Sending messages by gRPC instead of HTTP")
 	flag.Parse()
 	var cfg agent.AgentConfig
 	err := env.Parse(&cfg)
@@ -57,6 +58,7 @@ func main() {
 	var key *string
 	var rateLimit *int
 	var cryptoKeyPath *string
+	var useRPC *bool
 	var configPath *string
 	switch {
 	case err == nil:
@@ -90,6 +92,11 @@ func main() {
 				cryptoKeyPath = &cfg.CryptoKey
 			} else {
 				cryptoKeyPath = cryptoKeyPathParam
+			}
+			if !cfg.UseRPC {
+				useRPC = &cfg.UseRPC
+			} else {
+				useRPC = useRPCParam
 			}
 			if cfg.ConfigPath != "" {
 				configPath = &cfg.ConfigPath
@@ -134,21 +141,29 @@ func main() {
 		if len(*cryptoKeyPath) == 0 {
 			cryptoKeyPath = &fConfig.CryptoKey
 		}
+		if !*useRPC {
+			useRPC = &fConfig.UseRPC
+		}
 	}
 
 	printBuildParams()
 
 	srvErrs := make(chan error, 1)
+	agentInstance := agent.New(
+		*endpoint,
+		time.Duration(*pollInterval)*time.Second,
+		time.Duration(*reportInterval)*time.Second,
+		context.Background(),
+		*key,
+		*rateLimit,
+		*cryptoKeyPath,
+	)
 	go func() {
-		srvErrs <- agent.New(
-			*endpoint,
-			time.Duration(*pollInterval)*time.Second,
-			time.Duration(*reportInterval)*time.Second,
-			context.Background(),
-			*key,
-			*rateLimit,
-			*cryptoKeyPath,
-		).Run()
+		if *useRPC {
+			srvErrs <- agentInstance.RunRPC()
+		} else {
+			srvErrs <- agentInstance.Run()
+		}
 	}()
 
 	quit := make(chan os.Signal, 1)

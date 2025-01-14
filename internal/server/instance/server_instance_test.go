@@ -81,6 +81,6 @@ func TestRunServer(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 
-	time.Sleep(1 * time.Second) // Ждем завершения
+	time.Sleep(1 * time.Second)
 	t.Log("Server started and stopped correctly")
 }

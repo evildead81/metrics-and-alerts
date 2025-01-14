@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package metrics;
+
+service MetricsService {
+    rpc UpdateMetrics(UpdateMetricsRequest) returns (UpdateMetricsResponse);
+    rpc UpdateMetric(UpdateMetricRequest) returns (UpdateMetricResponse);
+}
+
+message Metrics {
+    string id = 1;
+    string type = 2;
+    int64 delta = 3;
+    double value = 4;
+}
+
+message UpdateMetricsRequest {
+    repeated Metrics metrics = 1;
+}
+
+message UpdateMetricsResponse {
+    bool success = 1;
+}
+
+message UpdateMetricRequest {
+    Metrics metric = 1;
+}
+
+message UpdateMetricResponse {
+    Metrics metric = 1;
+}

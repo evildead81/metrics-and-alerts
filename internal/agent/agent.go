@@ -22,10 +22,12 @@ import (
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	hash "github.com/evildead81/metrics-and-alerts/internal/hash"
+	pb "github.com/evildead81/metrics-and-alerts/internal/proto"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
+	"google.golang.org/grpc"
 )
 
 type Agent struct {
@@ -42,6 +44,7 @@ type Agent struct {
 	rateLimit      int
 	publicKey      *rsa.PublicKey
 	localIPAddress string
+	gRPCClient     pb.MetricsServiceClient
 }
 
 // New создает инстанс агента.
@@ -126,11 +129,72 @@ func (t Agent) Run() error {
 	return nil
 }
 
+func (t Agent) RunRPC() error {
+	conn, err := grpc.NewClient(t.host)
+	if err != nil {
+		logger.Logger.Fatal()
+	}
+	defer conn.Close()
+
+	t.gRPCClient = pb.NewMetricsServiceClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	t.ctx = ctx
+
+	defer cancel()
+
+	if t.rateLimit == 0 {
+		go func() error {
+			for {
+				time.Sleep(t.reportInterval)
+				t.postMetricsByRPC()
+			}
+		}()
+
+		for {
+			select {
+			case <-t.ctx.Done():
+				return nil
+			default:
+				t.refreshMetrics()
+				time.Sleep(t.pollInterval)
+			}
+		}
+	} else {
+		jobs := make(chan contracts.Metrics, 100)
+
+		var wg sync.WaitGroup
+
+		for i := 1; i <= t.rateLimit; i++ {
+			wg.Add(1)
+			go t.rpcWorker(jobs, &wg)
+		}
+
+		go t.readMetircs(jobs)
+		go t.readAdditionalMetrics(jobs)
+		time.Sleep(t.reportInterval)
+
+		close(jobs)
+		wg.Wait()
+
+	}
+
+	return nil
+}
+
 func (t *Agent) worker(jobs <-chan contracts.Metrics, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for j := range jobs {
 		t.serializeMetricAndPost(&j)
+	}
+}
+
+func (t *Agent) rpcWorker(jobs <-chan contracts.Metrics, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for j := range jobs {
+		t.postMetricByRPC(&j)
 	}
 }
 
@@ -243,6 +307,21 @@ func (t *Agent) serializeMetricAndPost(metric *contracts.Metrics) error {
 	return nil
 }
 
+func (t *Agent) postMetricByRPC(metric *contracts.Metrics) error {
+	_, err := t.gRPCClient.UpdateMetric(t.ctx, &pb.UpdateMetricRequest{Metric: &pb.Metrics{
+		Id:    metric.ID,
+		Type:  metric.MType,
+		Delta: *metric.Delta,
+		Value: *metric.Value,
+	}})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (t *Agent) serializeMetricsAndPost(metrics *[]contracts.Metrics) error {
 	url := t.host + "/updates/"
 	serialized, err := json.Marshal(metrics)
@@ -289,6 +368,38 @@ func (t *Agent) serializeMetricsAndPost(metrics *[]contracts.Metrics) error {
 		return reqErr
 	}
 	defer response.Body.Close()
+	return nil
+}
+
+func (t *Agent) postMetricsByRPC() error {
+	pbMetrics := make([]*pb.Metrics, 0)
+	for name, value := range *&t.gaugeMetrics {
+		pbMetrics = append(pbMetrics, &pb.Metrics{
+			Id:    name,
+			Type:  consts.Gauge,
+			Value: value,
+		})
+	}
+	for name, value := range *&t.counterMetrics {
+		pbMetrics = append(pbMetrics, &pb.Metrics{
+			Id:    name,
+			Type:  consts.Counter,
+			Delta: value,
+		})
+	}
+
+	_, err := t.gRPCClient.UpdateMetrics(t.ctx, &pb.UpdateMetricsRequest{Metrics: pbMetrics})
+
+	if err != nil {
+		if errors.Is(err, syscall.ECONNREFUSED) {
+			if t.sendAttempts < 3 {
+				t.sendAttempts += 1
+				time.Sleep(time.Duration(t.sendAttempts*2-1) * time.Second)
+				t.sendMeticList()
+			}
+		}
+		return err
+	}
 	return nil
 }
 

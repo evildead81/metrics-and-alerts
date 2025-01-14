@@ -18,6 +18,8 @@ type ServerConfig struct {
 	CryptoKey string `env:"CRYPTO_KEY" json:"crypto_key"`
 	// TrustedSubnet - доверенная подсеть клиента
 	TrustedSubnet string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
+	// UseRPC определяет тип сервера - HTTP или gRPC
+	UseRPC bool `env:"USE_RPC" json:"use_rpc"`
 	// ConfigPath - путь к файлу конфигурации в формате json
 	ConfigPath string `env:"CONFIG"`
 }

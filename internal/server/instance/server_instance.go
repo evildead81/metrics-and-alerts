@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -12,12 +13,15 @@ import (
 	"syscall"
 	"time"
 
+	pb "github.com/evildead81/metrics-and-alerts/internal/proto"
 	"github.com/evildead81/metrics-and-alerts/internal/server/handlers"
+	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
 	"github.com/evildead81/metrics-and-alerts/internal/server/middlewares"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 	"github.com/go-chi/chi/v5"
 	chiMid "github.com/go-chi/chi/v5/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"google.golang.org/grpc"
 )
 
 type ServerInstance struct {
@@ -122,6 +126,21 @@ func (t ServerInstance) Run() {
 		shutdown(err)
 	case sig := <-quit:
 		shutdown(sig)
+	}
+}
+
+func (t ServerInstance) RunRPC() {
+	lis, err := net.Listen("tcp", t.endpoint)
+	if err != nil {
+		logger.Logger.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	pb.RegisterMetricsServiceServer(s, &server{storage: t.storage, key: t.key})
+
+	t.runSaver()
+
+	if err := s.Serve(lis); err != nil {
+		logger.Logger.Fatalf("failed to serve: %v", err)
 	}
 }
 

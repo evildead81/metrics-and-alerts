@@ -65,6 +65,7 @@ func main() {
 	var keyParam = flag.String("k", "", "Secret key")
 	var cryptoKeyPathParam = flag.String("crypto-key", "", "Public key")
 	var trustedSubnetParam = flag.String("t", "", "Trusted subnet")
+	var useRPCParam = flag.Bool("use-rpc", false, "Use server as gRPC")
 	var configPathParam = flag.String("c", "", "Config path")
 	flag.Parse()
 	var cfg config.ServerConfig
@@ -79,6 +80,7 @@ func main() {
 	var cryptoKeyPath *string
 	var trustedSubnet *string
 	var configPath *string
+	var useRPC *bool
 	switch {
 	case err == nil:
 		if len(cfg.Address) != 0 {
@@ -120,6 +122,11 @@ func main() {
 			trustedSubnet = &cfg.TrustedSubnet
 		} else {
 			trustedSubnet = trustedSubnetParam
+		}
+		if !cfg.UseRPC {
+			useRPC = &cfg.UseRPC
+		} else {
+			useRPC = useRPCParam
 		}
 
 		if cfg.ConfigPath != "" {
@@ -168,7 +175,9 @@ func main() {
 		if len(*key) == 0 {
 			key = &fConfig.Key
 		}
-
+		if !*useRPC {
+			useRPC = &fConfig.UseRPC
+		}
 	}
 
 	var storage storages.Storage
@@ -185,12 +194,18 @@ func main() {
 
 	printBuildParams()
 
-	instance.New(
+	servInstance := instance.New(
 		*endpoint,
 		&storage,
 		time.Duration(*storeInterval)*time.Second,
 		*key,
 		*cryptoKeyPath,
 		*trustedSubnet,
-	).Run()
+	)
+
+	if *useRPC {
+		servInstance.RunRPC()
+	} else {
+		servInstance.Run()
+	}
 }
