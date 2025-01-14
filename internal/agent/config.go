@@ -13,6 +13,9 @@ type AgentConfig struct {
 	// RateLimit максимальное количество запросов, параллельно отправляемых на сервер.
 	RateLimit int `env:"RATE_LIMIT" json:"rate_limit"`
 	// CryptoKey - путь до файла с публичным ключом
-	CryptoKey  string `env:"CRYPTO_KEY" json:"crypto_key"`
+	CryptoKey string `env:"CRYPTO_KEY" json:"crypto_key"`
+	// UseRPC определяет форму обмена данными между агентом и сервером - HTTP или gRPC
+	UseRPC bool `env:"USE_RPC" json:"use_rpc"`
+	// ConfigPath - путь к файлу конфигурации в формате json
 	ConfigPath string `env:"CONFIG"`
 }

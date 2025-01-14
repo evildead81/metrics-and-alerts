@@ -31,7 +31,7 @@ func TestNewInstance(t *testing.T) {
 	storage := &MockStorage{
 		storage: memstorage.New("./metrics.json", true),
 	}
-	instance := New(":8080", &storage.storage, 5*time.Second, "test-key", "")
+	instance := New(":8080", &storage.storage, 5*time.Second, "test-key", "", "")
 
 	if instance.endpoint != ":8080" {
 		t.Errorf("Expected endpoint ':8080', got '%s'", instance.endpoint)
@@ -69,7 +69,7 @@ func TestRoutes(t *testing.T) {
 
 func TestRunServer(t *testing.T) {
 	storage := &MockStorage{}
-	instance := New(":8080", &storage.storage, 5*time.Second, "test-key", "")
+	instance := New(":8080", &storage.storage, 5*time.Second, "test-key", "", "")
 
 	go func() {
 		defer func() {
@@ -81,6 +81,6 @@ func TestRunServer(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 
-	time.Sleep(1 * time.Second) // Ждем завершения
+	time.Sleep(1 * time.Second)
 	t.Log("Server started and stopped correctly")
 }

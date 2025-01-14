@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -12,12 +13,15 @@ import (
 	"syscall"
 	"time"
 
+	pb "github.com/evildead81/metrics-and-alerts/internal/proto"
 	"github.com/evildead81/metrics-and-alerts/internal/server/handlers"
+	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
 	"github.com/evildead81/metrics-and-alerts/internal/server/middlewares"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 	"github.com/go-chi/chi/v5"
 	chiMid "github.com/go-chi/chi/v5/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"google.golang.org/grpc"
 )
 
 type ServerInstance struct {
@@ -26,6 +30,7 @@ type ServerInstance struct {
 	storeInterval time.Duration
 	key           string
 	privateKey    *rsa.PrivateKey
+	trustedSubnet string
 }
 
 // New создает инстанс сервера.
@@ -35,6 +40,7 @@ func New(
 	storeInterval time.Duration,
 	key string,
 	cryptoKeyPath string,
+	trustedSubnet string,
 ) *ServerInstance {
 	instance := ServerInstance{
 		endpoint:      endpoint,
@@ -66,6 +72,9 @@ func (t ServerInstance) Run() {
 	r := chi.NewRouter()
 	r.Use(middlewares.WithLogging)
 	r.Use(middlewares.GzipMiddleware)
+	if t.trustedSubnet != "" {
+		r.Use(middlewares.CheckClientIPMiddleware(t.trustedSubnet))
+	}
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/{metricType}/{metricName}/{metricValue}", handlers.UpdateMetricByParamsHandler(t.storage))
 		r.Post("/", handlers.UpdateMetricByJSONHandler(t.storage, t.key, t.privateKey))
@@ -117,6 +126,21 @@ func (t ServerInstance) Run() {
 		shutdown(err)
 	case sig := <-quit:
 		shutdown(sig)
+	}
+}
+
+func (t ServerInstance) RunRPC() {
+	lis, err := net.Listen("tcp", t.endpoint)
+	if err != nil {
+		logger.Logger.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	pb.RegisterMetricsServiceServer(s, &server{storage: t.storage, key: t.key})
+
+	t.runSaver()
+
+	if err := s.Serve(lis); err != nil {
+		logger.Logger.Fatalf("failed to serve: %v", err)
 	}
 }
 

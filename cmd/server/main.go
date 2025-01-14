@@ -64,6 +64,8 @@ func main() {
 	var connStrParam = flag.String("d", "", "DB connection string")
 	var keyParam = flag.String("k", "", "Secret key")
 	var cryptoKeyPathParam = flag.String("crypto-key", "", "Public key")
+	var trustedSubnetParam = flag.String("t", "", "Trusted subnet")
+	var useRPCParam = flag.Bool("use-rpc", false, "Use server as gRPC")
 	var configPathParam = flag.String("c", "", "Config path")
 	flag.Parse()
 	var cfg config.ServerConfig
@@ -76,7 +78,9 @@ func main() {
 	var connStr *string
 	var key *string
 	var cryptoKeyPath *string
+	var trustedSubnet *string
 	var configPath *string
+	var useRPC *bool
 	switch {
 	case err == nil:
 		if len(cfg.Address) != 0 {
@@ -114,6 +118,17 @@ func main() {
 		} else {
 			cryptoKeyPath = cryptoKeyPathParam
 		}
+		if cfg.TrustedSubnet != "" {
+			trustedSubnet = &cfg.TrustedSubnet
+		} else {
+			trustedSubnet = trustedSubnetParam
+		}
+		if !cfg.UseRPC {
+			useRPC = &cfg.UseRPC
+		} else {
+			useRPC = useRPCParam
+		}
+
 		if cfg.ConfigPath != "" {
 			configPath = &cfg.ConfigPath
 		} else {
@@ -154,10 +169,15 @@ func main() {
 		if len(*connStr) == 0 {
 			connStr = &fConfig.DatabaseDSN
 		}
+		if len(*trustedSubnet) == 0 {
+			trustedSubnet = &fConfig.TrustedSubnet
+		}
 		if len(*key) == 0 {
 			key = &fConfig.Key
 		}
-
+		if !*useRPC {
+			useRPC = &fConfig.UseRPC
+		}
 	}
 
 	var storage storages.Storage
@@ -174,11 +194,18 @@ func main() {
 
 	printBuildParams()
 
-	instance.New(
+	servInstance := instance.New(
 		*endpoint,
 		&storage,
 		time.Duration(*storeInterval)*time.Second,
 		*key,
 		*cryptoKeyPath,
-	).Run()
+		*trustedSubnet,
+	)
+
+	if *useRPC {
+		servInstance.RunRPC()
+	} else {
+		servInstance.Run()
+	}
 }
