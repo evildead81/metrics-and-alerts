@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-package metrics;
-
 service MetricsService {
     rpc UpdateMetrics(UpdateMetricsRequest) returns (UpdateMetricsResponse);
     rpc UpdateMetric(UpdateMetricRequest) returns (UpdateMetricResponse);
