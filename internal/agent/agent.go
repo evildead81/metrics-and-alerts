@@ -22,7 +22,7 @@ import (
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
 	hash "github.com/evildead81/metrics-and-alerts/internal/hash"
-	pb "github.com/evildead81/metrics-and-alerts/internal/proto"
+	pb "github.com/evildead81/metrics-and-alerts/internal/proto/metrics/proto"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
 	"github.com/shirou/gopsutil/v4/cpu"

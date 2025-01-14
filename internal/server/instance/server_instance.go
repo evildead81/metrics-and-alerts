@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	pb "github.com/evildead81/metrics-and-alerts/internal/proto"
+	pb "github.com/evildead81/metrics-and-alerts/internal/proto/metrics/proto"
 	"github.com/evildead81/metrics-and-alerts/internal/server/handlers"
 	"github.com/evildead81/metrics-and-alerts/internal/server/logger"
 	"github.com/evildead81/metrics-and-alerts/internal/server/middlewares"

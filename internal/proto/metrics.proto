@@ -1,5 +1,9 @@
 syntax = "proto3";
 
+package metrics;
+
+option go_package = "metrics/proto";
+
 service MetricsService {
     rpc UpdateMetrics(UpdateMetricsRequest) returns (UpdateMetricsResponse);
     rpc UpdateMetric(UpdateMetricRequest) returns (UpdateMetricResponse);

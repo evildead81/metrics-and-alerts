@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/evildead81/metrics-and-alerts/internal/contracts"
-	pb "github.com/evildead81/metrics-and-alerts/internal/proto"
+	pb "github.com/evildead81/metrics-and-alerts/internal/proto/metrics/proto"
 	"github.com/evildead81/metrics-and-alerts/internal/server/consts"
 	"github.com/evildead81/metrics-and-alerts/internal/server/storages"
 )
